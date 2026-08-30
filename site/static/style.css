@@ -1,0 +1,92 @@
+:root {
+  --bg-color: #fff0fd;
+  --fg-color: black;
+  --accent: #ff4ada;
+  --subtle: grey;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: black;
+  font-family: Verdana;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1em;
+  font-family: Georgia, sans-serif;
+}
+
+a {
+  color: var(--accent);
+}
+
+header {
+  display: flex;
+  flex-direction: column;
+}
+
+header > hr, #blog-section > hr {
+  width: 100%;
+}
+
+header > h1 {
+ text-align: center;
+}
+
+h1 {
+ margin-bottom: 3px;
+}
+
+header ul {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+}
+
+header li, #blog-section li {
+  list-style-type: none;
+}
+
+header li {
+  padding: 0 1em;
+}
+
+.dots {
+  border-bottom: 2px dotted var(--fg-color);
+  flex: 1;
+  margin: 0 .2rem;
+}
+
+.date {
+  color: var(--subtle);
+}
+
+#blog-section {
+  display: flex;
+  margin: 0 auto;
+  max-width: 420px;
+  flex-direction: column;
+}
+
+#blog-section > h2 {
+  margin-bottom: 3px;
+}
+
+#blog-section a {
+  display: flex;
+  text-decoration: none;
+}
+
+#blog-section li a span:first-child {
+  text-decoration: underline;  
+}
+
+#blog-section a:hover {
+  background-color: var(--accent);
+  color: var(--bg-color);
+}
+
+#blog-section ul {
+  padding-left: 0;  
+}
+

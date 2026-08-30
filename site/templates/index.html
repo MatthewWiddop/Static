@@ -1,0 +1,16 @@
+@extends "base.html"
+
+@block content
+
+<section id="posts-section">
+  <h2>Blog</h2>
+  <ul>
+  @foreach (post in posts) {
+    <li><a href="@post.filePath">
+      <span>@post.title</span>
+      <span class="dots"></span>
+      <span class="date">@post.date</span>
+    </li>
+  }
+  </ul>
+</section>

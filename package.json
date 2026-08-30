@@ -1,0 +1,11 @@
+{
+  "name": "static",
+  "version": "1.0.0",
+  "description": "A simple static site generator",
+  "license": "ISC",
+  "author": "Matthew Widdop",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+  }
+}
