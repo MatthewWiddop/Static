@@ -6,6 +6,8 @@
   "author": "Matthew Widdop",
   "type": "module",
   "main": "index.js",
-  "scripts": {
+  "scripts": {},
+  "dependencies": {
+    "js-yaml": "^5.4.1"
   }
 }
