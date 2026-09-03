@@ -5,6 +5,7 @@ A simple static website generator.
 The markdown parser supports the following elements from the [CommonMark Spec](https://spec.commonmark.org/0.31.2/):
 - Thematic breaks
 - ATX headings
+- Indented code blocks
 - Fenced code blocks
 - Paragraphs
 - Blank lines 
