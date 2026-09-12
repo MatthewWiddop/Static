@@ -1,4 +1,4 @@
-import type { Block } from './Block';
+import type { Block } from './Block.ts';
 
 export type FenceType = '`' | '~';
 
@@ -9,6 +9,7 @@ export class CodeBlock implements Block<'CodeBlock'> {
   public fenceCount: number;
   public indentation: number;
   public language: string;
+  static readonly interrupt = true;
   
   static start(line: string): CodeBlock | null {
     const startRe = /^( {0,3})(`{3,}|~{3,})\s*([^\s`]*)\s*$/;

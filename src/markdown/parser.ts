@@ -1,5 +1,6 @@
-import type { Block, BlockConstructor } from './blocks/Block';
-import type { Element } from './ast';
+import type { Block, BlockConstructor } from './blocks/Block.ts';
+import type { Element } from './ast.ts';
+import { tokenise } from './lexer.ts';
 
 export interface Document extends Element {
   type: 'Document';
@@ -7,16 +8,24 @@ export interface Document extends Element {
 }
 
 export class Parser {
-  private blocks: Block[] = [];
-  private open: Block | null = null;
-  private blockTypes: BlockConstructor[] = [
-    
-  ];
+  private children: Block[] = [];
+  private _openBlock: Block | null = null;
+
+  private get openBlock(): Block | null {
+    return this._openBlock;
+  }
+
+  private set openBlock(block: Block) {
+    this._openBlock = block;
+    if (block !== null) {
+      this.children.push(block)
+    }
+  }
 
   public parse(text: string): Document {
     const document: Document = {
       type: 'Document',
-      children: this.blocks
+      children: this.children
     }
     const lines = text.split('\n');
 
@@ -28,26 +37,17 @@ export class Parser {
   }
 
   private parseLine(line: string) {
-    // try parsers against the line
-    // make new blocks as necessary
-    // don't parse inlines yet, save that until the end
-  }
+    if (this.openBlock?.eat(line)) {
+      return;
+    }
 
-  private startNewBlocks(line) {
-
-  }
-
-  private addRemainingText(line) {
-    
+    const newBlock = tokenise(line)!;
+    this.openBlock = newBlock;
   }
 }
 
-export const markdownToHtml = (text: string): string => {
+export const markdownToHtml = (text: string): void => {
   const lines = text.split('\n');
-
-  return stringify(root);
-}
-
-const stringify = (root: Document): string => {
-  return '';
+  const parser = new Parser();
+  // to return result in the future
 }

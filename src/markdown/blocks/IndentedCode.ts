@@ -1,4 +1,4 @@
-import type { Block } from './Block';
+import type { Block } from './Block.ts';
 
 export class IndentedCode implements Block<'IndentedCode'> {
   public readonly type = 'IndentedCode';

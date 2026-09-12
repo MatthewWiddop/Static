@@ -3,8 +3,9 @@ export interface Block<T extends BlockNodeType = BlockNodeType> {
   eat(line: string): boolean;
 }
 
-export interface BlockConstructor<T extends Block = Block> {
-  start(line: string): T | null;
+export interface BlockConstructor<T extends BlockNodeType = BlockNodeType> {
+  interrupt?: boolean;
+  start(line: string): Block<T> | null;
 }
 
 export type BlockNodeType = 

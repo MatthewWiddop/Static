@@ -1,29 +1,10 @@
-import { Block, BlockConstructor } from './Block';
-import { BlockQuote } from './BlockQuote';
-import { CodeBlock } from './CodeBlock';
-import { Heading } from './Heading';
-import { IndentedCode } from './IndentedCode';
-import { List } from './List';
-import { ListItem } from './ListItem';
-import { Paragraph } from './Paragraph';
-import { ThematicBreak } from './ThematicBreak';
-export { BlockQuote, CodeBlock, Heading, IndentedCode, List, ListItem, Paragraph, ThematicBreak }
+export type { Block, BlockConstructor, BlockNodeType } from './Block.ts';
+export { BlockQuote } from './BlockQuote.ts';
+export { CodeBlock } from './CodeBlock.ts';
+export { Heading } from './Heading.ts';
+export { IndentedCode } from './IndentedCode.ts';
+export { List } from './List.ts';
+export { ListItem } from './ListItem.ts';
+export { Paragraph } from './Paragraph.ts';
+export { ThematicBreak } from './ThematicBreak.ts';
 
-const blockParser: BlockConstructor[] = [
-  ThematicBreak,
-  BlockQuote,
-  CodeBlock,
-  Heading,
-  IndentedCode,
-  List,
-  Paragraph
-]
-
-const tokenise = (line: string): Block => {
-  for (const Parser of blockParser) {
-    const block = Parser.start(line);
-    if (block !== null) {
-      return block;// TODO: continue
-    }
-  }
-}

@@ -1,7 +1,8 @@
-import type { Block } from './Block';
+import type { Block } from './Block.ts';
 
 export class Heading implements Block<'Heading'> {
   public readonly type = 'Heading';
+  static readonly interrupt = true;
   public text: string;
   public depth: number;
 
