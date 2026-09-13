@@ -41,3 +41,7 @@ The markdown parser supports the following elements from the [CommonMark Spec](h
 - Choose template
 - Render template with page data
 - Write HTML to static
+
+### Notes
+
+An ordered list cannot interrupt a paragraph unless it starts with "1.", but the current implementation is forgiving.

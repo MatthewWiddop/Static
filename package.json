@@ -5,8 +5,13 @@
   "license": "ISC",
   "author": "Matthew Widdop",
   "type": "module",
-  "scripts": {},
+  "scripts": {
+    "test": "jest"
+  },
   "dependencies": {
     "js-yaml": "^5.4.1"
+  },
+  "devDependencies": {
+    "jest": "^30.5.1"
   }
 }

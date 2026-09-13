@@ -1,5 +1,6 @@
 import { ThematicBreak, BlockQuote, CodeBlock, Heading, IndentedCode, List, Paragraph } from './blocks/index.ts';
 import type { Block, BlockConstructor } from './blocks/index.ts';
+import type { Source } from './SourceLine.ts';
 
 export interface TokeniseCtx {
   inParagraph: boolean;
@@ -14,15 +15,16 @@ const blockParsers: BlockConstructor[] = [
   BlockQuote,
   CodeBlock,
   Heading,
-  // IndentedCode,
+  IndentedCode,
   List,
   Paragraph
-]
+];
 
-export const tokenise = (line: string, ctx: TokeniseCtx = defaultCtx): Block | null => {
+export const tokenise = (line: Source, ctx: TokeniseCtx = defaultCtx): Block | null => {
   const validParsers = blockParsers.filter(parser => {
     return !ctx.inParagraph || parser.interrupt
   });
+
   for (const BlockParser of validParsers) {
     const block = BlockParser.start(line);
     if (block !== null) {

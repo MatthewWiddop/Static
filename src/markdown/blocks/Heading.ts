@@ -1,30 +1,37 @@
+import type { Source } from '../SourceLine.ts';
 import type { Block } from './Block.ts';
+
+interface HeadingInfo {
+  depth: number;
+  text: string;
+}
+
+const HEADING_REGEX = /^ {0,3}(#{1,6})(?:\s+(.*?)(?:\s+(?<!\\)#+)?\s*)$/;
 
 export class Heading implements Block<'Heading'> {
   public readonly type = 'Heading';
   static readonly interrupt = true;
-  public text: string;
   public depth: number;
+  public text: string;
 
-  static start(line: string): Heading | null {
-    const startRe = /^ {0,3}(#{1,6})(?:\s+(.*?)(?:\s+(?<!\\)#+)?\s*)$/;
-    const match = line.match(startRe);
-    if (!match) {
-      return null;
-    }
-    const depth = match[1].length;
-    const text = match[2];
+  static start(line: Source): Heading | null {
+    const match = line.content.match(HEADING_REGEX);
+    if (!match) return null;
+    const [, hashes, text] = match;
 
-    return new Heading(text, depth);
+    return new Heading({
+      depth: hashes.length,
+      text
+    });
   }
 
-  public eat(line: string): boolean {
+  public eat(line: Source): boolean {
     return false;
   }
 
-  constructor(text: string, depth: number) {
-    this.text = text;
-    this.depth = depth;
+  constructor(info: HeadingInfo) {
+    this.depth = info.depth;
+    this.text = info.text;
   }
 }
 

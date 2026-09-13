@@ -1,63 +1,59 @@
 import type { Block } from './Block.ts';
-import { calcBlockIndent, countLeftSpaces, isEmptyLine } from '../../utils.ts';
+import { countLeadingSpaces, isEmptyLine } from '../../utils.ts';
 import { tokenise } from '../lexer.ts';
+import type { Source  } from '../SourceLine.ts';
+import { SourceLine } from '../SourceLine.ts';
+
+const QUOTE_REGEX = /^ {0,3}>(.*)$/;
+const QUOTE_MARKER = '>';
+
+interface BlockQuoteInfo {
+  line: Source;
+}
+
+const parseBlockQuote = (line: Source): Source | null => {
+  if (!QUOTE_REGEX.test(line.content)) return null;
+
+  const leadingSpaces = line.content.indexOf(QUOTE_MARKER);
+  if (leadingSpaces === -1) return null;
+
+  const spaces = countLeadingSpaces(
+    line.content.slice(leadingSpaces + QUOTE_MARKER.length)
+  );
+
+  const padding = spaces ? 1 : 0;
+  const indent = leadingSpaces + QUOTE_MARKER.length + padding;
+
+  return new SourceLine(line.raw, line.offset + indent);
+};
 
 export class BlockQuote implements Block<'BlockQuote'> {
   public readonly type = 'BlockQuote';
-  static readonly startRe = /^ {0,3}>/;
   static readonly interrupt = true;
   public children: Block[] = [];
   private _openBlock: Block | null = null;
 
-  static start(line: string): BlockQuote | null {
-    if (!this.startRe.test(line)) {
-      return null;
-    }
+  static start(line: Source): BlockQuote | null {
+    const parsedLine = parseBlockQuote(line);
+    if (!parsedLine) return null;
     
-    return new BlockQuote(line);
+    return new BlockQuote({ line: parsedLine });
   }
 
-  public eat(line: string): boolean {
-    if (isEmptyLine(line)) {
-      return false;
-    }
+  public eat(line: Source): boolean {
+    const newLine = parseBlockQuote(line);
+    if (newLine) {
+      if (this.openBlock?.eat(newLine)) return true;
 
-    const hasMarker = BlockQuote.startRe.test(line);
-
-    const lineContent = hasMarker
-      ? line.slice(this.calcItemCol(line))
-      : line;
-
-    if (isEmptyLine(lineContent)) {
       this.openBlock = null;
-      return true;
+      if (isEmptyLine(newLine.content)) return true;
+
+      this.openBlock = tokenise(newLine)
+      return this.openBlock !== null
     }
 
-    if (this.openBlock?.type === 'Paragraph') {
-      const interruptingBlock = tokenise(lineContent, { inParagraph: true });
-
-      if (!interruptingBlock) {
-        this.openBlock.eat(lineContent);
-        return true;
-      }
-
-      if (hasMarker) {
-        this.openBlock = interruptingBlock;
-        return true;
-      }
-      return false;
-    }
-
-    if (!hasMarker) {
-      return false;
-    }
-
-    if (this.openBlock?.eat(lineContent)) {
-      return true;
-    }
-
-    this.openBlock = tokenise(lineContent);
-    return !this.openBlock;
+    if (this.openBlock?.eat(line)) return true;
+    return false;
   }
 
   private get openBlock(): Block | null {
@@ -71,19 +67,10 @@ export class BlockQuote implements Block<'BlockQuote'> {
     }
   }
 
-  private calcItemCol(line: string): number {
-    const leadingSpaces = line.indexOf('>');
-    if (leadingSpaces === -1) return 0;
-    const spaces = countLeftSpaces(
-      line.slice(leadingSpaces + 1)
-    );
-    const trailingSpaces = !spaces ? spaces : calcBlockIndent(spaces);
-    return leadingSpaces + '>'.length + trailingSpaces;
-  }
-
-  constructor(line: string) {
-    const itemCol = this.calcItemCol(line);
-    this.openBlock = tokenise(line.slice(itemCol));
+  constructor(info: BlockQuoteInfo) {
+    if (info.line.content) {
+      this.openBlock = tokenise(info.line);
+    }
   }
 }
 

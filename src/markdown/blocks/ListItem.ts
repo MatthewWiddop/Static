@@ -1,45 +1,28 @@
 import type { Block } from './Block.ts';
+import { SourceLine, type Source } from '../SourceLine.ts';
 import { tokenise } from '../lexer.ts';
-import { calcBlockIndent, countLeftSpaces, isEmptyLine } from '../../utils.ts';
 
-export type BulletListMarker = '-' | '+' | '*';
-export type OrderedListMarker = '.' | ')';
-export type ListMarker = BulletListMarker | OrderedListMarker;
+interface ListItemInfo {
+  line: Source;
+}
 
 export class ListItem implements Block<'ListItem'> {
   public readonly type = 'ListItem';
   public children: Block[] = [];
+  public offset: number;
   private _openBlock: Block | null = null;
-  private indentation: number;
-  private markerCol: number;
 
-  public eat(line: string): boolean {
-    if (isEmptyLine(line)) { // handle lazy continuation, cannot necessarily close block on a blank line. Close the outer most block?
-      this.openBlock = null;
-      return true;
+  public eat(line: Source): boolean {
+    if (this.offset <= line.offset) {
+      const newLine = new SourceLine(line.raw, this.offset);
+      if (this.openBlock?.eat(newLine)) return true;
+
+      this.openBlock = tokenise(newLine);
+      return this.openBlock !== null;
     }
 
-    if (line.length > 
-
-    if (this.openBlock?.type === 'Paragraph') {
-      const interruptingBlock = tokenise(line.split
-
-    const newBlock = tokenise(line.slice(this.contentCol));
-    if (newBlock?.type === 'ThematicBreak') {
-      return false;
-    }
-    this.openBlock = newBlock;
-    return this.openBlock !== null;
-  }
-
-  private closeBlock(): void {
-    if (!this.openBlock) return;
-    this.children.push(this.openBlock);
-    this.openBlock = null;
-  }
-
-  private calcIndentation(line: string): number {
-    return calcBlockIndent(spaces) + this.markerCol;
+    if (this.openBlock?.eat(line)) return true;
+    return false;
   }
 
   private get openBlock(): Block | null {
@@ -53,13 +36,9 @@ export class ListItem implements Block<'ListItem'> {
     }
   }
 
-  private get contentCol(): number {
-    return this.indentation + this.markerCol;
-  }
-
-  constructor(line: string, markerCol: number) {
-    this.markerCol = markerCol;
-    this.indentation = this.calcIndentation(line);
-    this.eat(line); // TODO: finish eat func
+  constructor(info: ListItemInfo) {
+    this.offset = info.line.offset;
+    this.eat(info.line);
   }
 }
+

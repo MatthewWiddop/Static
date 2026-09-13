@@ -1,11 +1,14 @@
-import type { Block, BlockConstructor } from './blocks/Block.ts';
+import type { Block } from './blocks/Block.ts';
 import type { Element } from './ast.ts';
 import { tokenise } from './lexer.ts';
+import { SourceLine } from './SourceLine.ts';
 
 export interface Document extends Element {
   type: 'Document';
   children: Block[];
 }
+
+const INIT_OFFSET = 0;
 
 export class Parser {
   private children: Block[] = [];
@@ -37,11 +40,12 @@ export class Parser {
   }
 
   private parseLine(line: string) {
-    if (this.openBlock?.eat(line)) {
+    const source = new SourceLine(line, INIT_OFFSET);
+    if (this.openBlock?.eat(source)) {
       return;
     }
 
-    const newBlock = tokenise(line)!;
+    const newBlock = tokenise(source)!;
     this.openBlock = newBlock;
   }
 }
