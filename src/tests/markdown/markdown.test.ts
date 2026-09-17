@@ -1,13 +1,11 @@
-import type { Block, BlockConstructor } from '../../markdown/blocks/Block.ts';
-import type { Document } from '../../markdown/parser.ts';
-import { Parser } from '../../markdown/parser.ts';
+import { Parser } from '../../markdown/Parser.ts';
+import type { BlockNode } from '../../markdown/ast.ts';
 
 const SPACE = ' ';
 
-interface TreeNode {
-  type: string;
-  depth: number;
-  children?: Block[];
+type TreeNode = BlockNode & {
+  currentDepth: number;
+  children?: BlockNode[];
   next: number
 }
 
@@ -20,41 +18,35 @@ export const printAST = (root: Document) => {
   }];
 
   while (nodes.length > 0) {
-    const { type, depth, children, next } = nodes.pop()!;
+    const { type, currentDepth, children, next } = nodes.pop()!;
     if (next === 0) {
-      console.log(SPACE.repeat(depth * 2) + type);
+      console.log(SPACE.repeat(currentDepth * 2) + type);
     }
 
     if (children && next < children.length) {
       nodes.push({
         type,
-        depth,
+        currentDepth,
         children,
         next: next + 1
-      });
+      } as TreeNode);
 
       const nextNode = children[next];
       nodes.push({ 
         type: nextNode.type,
-        depth: depth + 1,
-        children: nextNode.children,
+        depth: currentDepth + 1,
         next: 0
-      });
+      } as TreeNode);
     }
   }
 }
 
 const text = [
-  '> this is some text',
-  'that continues on a new line',
-  '> we also allow non-lazy paragraph continuation',
-  '> - this is a list',
-  '> - it has a second item',
-  '# heading!',
-  'some other text'
+  '- - - list within list within list',
+  '  + non matching'
 ].join('\n');
 
 
-const parser = new Parser();
-const tree = parser.parse(text);
-printAST(tree);
+const tree = Parser.parse(text);
+console.log(JSON.stringify(tree, null, 2));
+

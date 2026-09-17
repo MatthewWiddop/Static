@@ -1,44 +1,37 @@
-import type { Block } from './Block.ts';
-import { SourceLine, type Source } from '../SourceLine.ts';
-import { tokenise } from '../lexer.ts';
+import type { Cursor } from '../Cursor.ts';
+import { type BlockParser, Parser } from '../Parser.ts';
+import type { ListItemNode } from '../ast';
+import { Marker } from '../Marker.ts';
 
-interface ListItemInfo {
-  line: Source;
-}
+export class ListItemParser implements BlockParser<ListItemNode> {
+  start(cursor: Cursor): ListItemNode | null {
+    const marker = Marker.parse(cursor.current);
+    if (!marker) return null;
 
-export class ListItem implements Block<'ListItem'> {
-  public readonly type = 'ListItem';
-  public children: Block[] = [];
-  public offset: number;
-  private _openBlock: Block | null = null;
+    cursor.indent(marker.contentIndent);
+    const indent = cursor.col;
+    const child = Parser.createBlock(cursor);
+    const children = !child ? [] : [child];
 
-  public eat(line: Source): boolean {
-    if (this.offset <= line.offset) {
-      const newLine = new SourceLine(line.raw, this.offset);
-      if (this.openBlock?.eat(newLine)) return true;
+    return {
+      type: 'ListItem',
+      indent,
+      children
+    };
+  }
 
-      this.openBlock = tokenise(newLine);
-      return this.openBlock !== null;
-    }
-
-    if (this.openBlock?.eat(line)) return true;
+  continue(cursor: Cursor, block: ListItemNode): boolean {
+    const marker = Marker.parse(cursor.current)
+    if (!marker || marker.indent < block.indent) return false;
+    
+    cursor.col = block.indent;
     return false;
   }
 
-  private get openBlock(): Block | null {
-    return this._openBlock;
-  }
-
-  private set openBlock(block: Block | null) {
-    this._openBlock = block;
-    if (block !== null) {
-      this.children.push(block);
-    }
-  }
-
-  constructor(info: ListItemInfo) {
-    this.offset = info.line.offset;
-    this.eat(info.line);
+  eat(cursor: Cursor, block: ListItemNode): void {
+    cursor.col = block.indent;
+    const child = Parser.createBlock(cursor);
+    if (!child) return;
+    block.children.push(child);
   }
 }
-

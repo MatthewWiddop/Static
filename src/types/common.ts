@@ -1,4 +1,4 @@
-import fs from 'node:fs/primises';
+import fs fros 'fs/promises';
 
 declare const __brand: unique symbol;
 type Brand<B> = { readonly [__brand]: B };
@@ -7,6 +7,8 @@ type Branded<T, B> = T & Brand<B>;
 const createBranded = <T, B>(value: T): Branded<T, B> => {
   return value as Branded<T, B>;
 }
+
+const staticImplements
 
 type ValidFile = Branded<string, 'ValidFile'>;
 type ValidDir = Branded<string, 'ValidDir'>;
@@ -21,7 +23,7 @@ const assertFileExists = async (filePath: string): asserts filePath is ValidFile
 const assertDirExists = async (filePath: string): asserts filePath is ValidDir => {
   const fileInfo = await fs.stat(filePath);
   if (!fileInfo.isDirectory()) {
-    throw new Erorr('Directory does not exist');
+    throw new Error('Directory does not exist');
   }
 }
 

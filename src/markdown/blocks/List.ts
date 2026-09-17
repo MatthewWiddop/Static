@@ -1,69 +1,43 @@
-import type { Block } from './Block.ts';
-import type { ParsedListMarker } from '../Marker.ts';
 import { Marker } from '../Marker.ts';
-import { ListItem } from './ListItem.ts';
-import type { Source } from '../SourceLine.ts';
-import { SourceLine } from '../SourceLine.ts';
+import type { Cursor } from '../Cursor.ts';
+import type { BlockParser } from '../Parser.ts';
+import type { ListItemNode, ListNode } from '../ast.ts';
+import { ListItemParser } from './ListItem.ts';
 
-interface ListInfo {
-  marker: ParsedListMarker;
-  line: Source;
+const itemParser = new ListItemParser();
+  
+const getListChildren = (cursor: Cursor): ListItemNode[] => {
+  const child = itemParser.start(cursor);
+  return !child ? [] : [child];
 }
 
-export class List implements Block<'List'> {
-  public readonly type = 'List';
-  public children: ListItem[] = [];
-  private _openBlock: ListItem | null = null;
-  private marker: ParsedListMarker;
-  private offset: number;
-  static readonly interrupt = true;
+export class ListParser implements BlockParser<ListNode> {
+  public readonly interrupt = true;
   
-  static start(line: Source): List | null {
-    const marker = Marker.parse(line.content);
-    if (!marker) return null;
+  public start(cursor: Cursor): ListNode | null {
+    const listMarker = Marker.parse(cursor.current);
+    if (!listMarker) return null;
 
-    return new List({
-      marker,
-      line 
-    });
+
+    return {
+      type: 'List',
+      indent: cursor.col,
+      marker: listMarker,
+      children: getListChildren(cursor)
+    };
   }
 
-  public eat(line: Source): boolean {
-    if (!this.openBlock) return this.tryNewListItem(line);
-
-    if (line.offset < this.openBlock.offset && this.tryNewListItem(line)) {
-      return true;
-    }
-
-    return this.openBlock.eat(line) ?? false;
-  }
-
-  private get openBlock(): ListItem | null {
-    return this._openBlock;
-  }
-
-  private set openBlock(block: ListItem) {
-    this._openBlock = block;
-    if (block !== null) {
-      this.children.push(block);
-    }
-  }
-
-  private tryNewListItem(line: Source): boolean {
-    const marker = Marker.parse(line.raw.slice(this.offset));
-    if (!marker || !Marker.same(marker, this.marker)) {
-      return false;
-    }
-
-    const newLine = new SourceLine(line.raw, line.offset + marker.contentIndent)
-    this.openBlock = new ListItem({ line: newLine });
+  public continue(cursor: Cursor, block: ListNode): boolean {
+    const newMarker = Marker.parse(cursor.current);
+    if (!newMarker || !Marker.same(block.marker, newMarker)) return false;
+    
     return true;
   }
 
-  constructor(info: ListInfo) {
-    this.marker = info.marker;
-    this.offset = info.line.offset;
-    this.eat(info.line);
+  public eat(cursor: Cursor, block: ListNode): void {
+    cursor.col = block.indent;
+    const children = getListChildren(cursor);
+    block.children.push(...children);
   }
 }
 

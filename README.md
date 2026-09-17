@@ -17,7 +17,7 @@ The markdown parser supports the following elements from the [CommonMark Spec](h
 
 ## To do
 
-- Implement md to html function
+- Implement md to html function - TODO: this bit next!
   + takes input markdown file and returns a readable stream of characters for the content block
   + generates paragraphs
   + generates code blocks
@@ -44,4 +44,5 @@ The markdown parser supports the following elements from the [CommonMark Spec](h
 
 ### Notes
 
-An ordered list cannot interrupt a paragraph unless it starts with "1.", but the current implementation is forgiving.
+- An ordered list cannot interrupt a paragraph unless it starts with "1.", but the current implementation is forgiving.
+- List items cannot be empty in this implementation

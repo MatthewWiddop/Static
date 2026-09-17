@@ -1,76 +1,57 @@
-import type { Block } from './Block.ts';
-import { countLeadingSpaces, isEmptyLine } from '../../utils.ts';
-import { tokenise } from '../lexer.ts';
-import type { Source  } from '../SourceLine.ts';
-import { SourceLine } from '../SourceLine.ts';
+import { Parser, type BlockParser } from '../Parser.ts';
+import type { Cursor } from '../Cursor';
+import { countLeadingSpaces } from '../../utils.ts';
+import type { BlockQuoteNode } from '../ast.ts';
 
-const QUOTE_REGEX = /^ {0,3}>(.*)$/;
+const QUOTE_REGEX = /^ {0,3}>/;
 const QUOTE_MARKER = '>';
 
-interface BlockQuoteInfo {
-  line: Source;
-}
+const parseBlockQuote = (cursor: Cursor): number | null => {
+  if (!QUOTE_REGEX.test(cursor.current)) return null;
 
-const parseBlockQuote = (line: Source): Source | null => {
-  if (!QUOTE_REGEX.test(line.content)) return null;
-
-  const leadingSpaces = line.content.indexOf(QUOTE_MARKER);
+  const leadingSpaces = cursor.current.indexOf(QUOTE_MARKER);
   if (leadingSpaces === -1) return null;
 
   const spaces = countLeadingSpaces(
-    line.content.slice(leadingSpaces + QUOTE_MARKER.length)
+    cursor.current.slice(leadingSpaces + QUOTE_MARKER.length)
   );
 
   const padding = spaces ? 1 : 0;
-  const indent = leadingSpaces + QUOTE_MARKER.length + padding;
-
-  return new SourceLine(line.raw, line.offset + indent);
+  return leadingSpaces + QUOTE_MARKER.length + padding;
 };
 
-export class BlockQuote implements Block<'BlockQuote'> {
-  public readonly type = 'BlockQuote';
-  static readonly interrupt = true;
-  public children: Block[] = [];
-  private _openBlock: Block | null = null;
+export class BlockQuoteParser implements BlockParser<BlockQuoteNode> {
+  public readonly interrupt = true;
 
-  static start(line: Source): BlockQuote | null {
-    const parsedLine = parseBlockQuote(line);
-    if (!parsedLine) return null;
-    
-    return new BlockQuote({ line: parsedLine });
+  public start(cursor: Cursor): BlockQuoteNode | null {
+    let quoteIndent = parseBlockQuote(cursor);
+    if (!quoteIndent) return null;
+
+    cursor.indent(quoteIndent);
+    const child = Parser.createBlock(cursor);
+    const children = !child ? [] : [child];
+
+    return {
+      type: 'BlockQuote',
+      indent: quoteIndent,
+      children
+    };
   }
 
-  public eat(line: Source): boolean {
-    const newLine = parseBlockQuote(line);
-    if (newLine) {
-      if (this.openBlock?.eat(newLine)) return true;
+  public continue(cursor: Cursor, _: BlockQuoteNode): boolean {
+    const quoteIndent = parseBlockQuote(cursor);
+    if (!quoteIndent) return false;
 
-      this.openBlock = null;
-      if (isEmptyLine(newLine.content)) return true;
-
-      this.openBlock = tokenise(newLine)
-      return this.openBlock !== null
-    }
-
-    if (this.openBlock?.eat(line)) return true;
-    return false;
+    cursor.indent(quoteIndent);
+    return true;
   }
 
-  private get openBlock(): Block | null {
-    return this._openBlock;
-  }
+  public eat(cursor: Cursor, block: BlockQuoteNode): void {
+    cursor.col = block.indent;
+    const child = Parser.createBlock(cursor);
+    if (!child) return;
 
-  private set openBlock(block: Block | null) {
-    this._openBlock = block;
-    if (block !== null) {
-      this.children.push(block);
-    }
-  }
-
-  constructor(info: BlockQuoteInfo) {
-    if (info.line.content) {
-      this.openBlock = tokenise(info.line);
-    }
+    block.children.push(child);
   }
 }
 

@@ -1,16 +1,13 @@
 import { calcBlockIndent, countLeadingSpaces } from '../utils.ts';
+import type { ListMarker } from './ast.ts';
 
-export type BulletListMarker = '-' | '+' | '*';
-export type OrderedListMarker = '.' | ')';
-export type ListMarker = BulletListMarker | OrderedListMarker;
-
-const ORDERED_MARKERS = [ '-', '+', '*' ];
+const UNORDERED_MARKERS = [ '-', '+', '*' ];
 const MARKER_REGEX = /^( {0,3})([-+*]|\d{1,9}[.)])(.*)$/;
 
 export interface ParsedListMarker {
   ordered: boolean;
   marker: ListMarker;
-  start: number | null;
+  start?: number;
   indent: number;
   markerWidth: number;
   padding: number;
@@ -25,8 +22,8 @@ export class Marker {
     const [, leadingSpaces, fullMarker, remaining] = match;
     const indent = leadingSpaces.length;
     const marker = fullMarker.at(-1) as ListMarker;
-    const ordered = ORDERED_MARKERS.includes(marker);
-    const start = ordered ? Number(marker.slice(0, fullMarker.length)) : null;
+    const ordered = !UNORDERED_MARKERS.includes(marker);
+    const start = ordered ? Number(marker.slice(0, fullMarker.length)) : undefined;
     const markerWidth = fullMarker.length;
 
     const spaces = countLeadingSpaces(remaining);

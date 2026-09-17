@@ -1,37 +1,36 @@
-import type { Source } from '../SourceLine.ts';
-import type { Block } from './Block.ts';
-
-interface HeadingInfo {
-  depth: number;
-  text: string;
-}
+import type { HeadingNode } from '../ast.ts';
+import type { Cursor } from '../Cursor.ts';
+import type { BlockParser } from '../Parser.ts';
 
 const HEADING_REGEX = /^ {0,3}(#{1,6})(?:\s+(.*?)(?:\s+(?<!\\)#+)?\s*)$/;
 
-export class Heading implements Block<'Heading'> {
-  public readonly type = 'Heading';
-  static readonly interrupt = true;
-  public depth: number;
-  public text: string;
+export class HeadingParser implements BlockParser<HeadingNode> {
+  public readonly interrupt = true;
 
-  static start(line: Source): Heading | null {
-    const match = line.content.match(HEADING_REGEX);
+  public start(cursor: Cursor): HeadingNode | null {
+    const match = cursor.current?.match(HEADING_REGEX);
     if (!match) return null;
-    const [, hashes, text] = match;
+    const [, hashes] = match;
 
-    return new Heading({
+    cursor.indent(hashes.length);
+
+    return {
+      type: 'Heading',
       depth: hashes.length,
-      text
-    });
+      text: ''
+    };
   }
 
-  public eat(line: Source): boolean {
+  public continue(cursor: Cursor, block: HeadingNode): boolean {
     return false;
   }
 
-  constructor(info: HeadingInfo) {
-    this.depth = info.depth;
-    this.text = info.text;
+  public eat(cursor: Cursor, block: HeadingNode): void {
+    const match = `# ${cursor.current}`.match(HEADING_REGEX);
+    if (!match) return;
+    cursor.indent();
+    const [,, text] = match
+    block.text += text.trim();
   }
 }
 

@@ -1,38 +1,30 @@
-import type { Block } from './Block.ts';
-import type { Source } from '../SourceLine.ts';
+import { Parser, type BlockParser } from '../Parser.ts';
+import type { ParagraphNode } from '../ast.ts';
 import { isEmptyLine } from '../../utils.ts';
-import { tokenise } from '../lexer.ts';
+import type { Cursor } from '../Cursor.ts';
 
-interface ParagraphInfo {
-  text: string;
-}
-
-export class Paragraph implements Block<'Paragraph'> {
-  public readonly type = 'Paragraph';
-  public text: string;
-
-  static start(line: Source): Paragraph | null {
-    if (isEmptyLine(line.content)) return null;
-    const text = line.content.trim();
-    return new Paragraph({ text });
+export class ParagraphParser implements BlockParser<ParagraphNode> {
+  public start(cursor: Cursor): ParagraphNode | null {
+    if (isEmptyLine(cursor.current)) return null;
+    return {
+      type: 'Paragraph',
+      text: ''
+    };
   }
 
-  public eat(line: Source): boolean {
-    if (isEmptyLine(line.raw) 
-      || detectInterruptingBlock(line)) {
-      return false;
-    }
-
-    this.text += '\n' + line.content.trim();
-    return true;
+  public continue(cursor: Cursor, _: ParagraphNode): boolean {
+    return !isEmptyLine(cursor.current); // TODO: add back detectInterrupt if not working
   }
 
-  constructor(info: ParagraphInfo) {
-    this.text = info.text;
+  public eat(cursor: Cursor, block: ParagraphNode): void {
+    if (!cursor.current) return;
+    const newLine = cursor.current.trim();
+    block.text += block.text ? '\n' + newLine : newLine;
+    cursor.indent();
   }
 }
 
-const detectInterruptingBlock = (line: Source): boolean => {
-  const interruptingBlock = tokenise(line, { inParagraph: true });
+const detectInterruptingBlock = (cursor: Cursor): boolean => {
+  const interruptingBlock = Parser.createBlock(cursor, { interrupt: true });
   return interruptingBlock !== null;
 }
