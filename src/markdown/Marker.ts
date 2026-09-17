@@ -23,7 +23,7 @@ export class Marker {
     const indent = leadingSpaces.length;
     const marker = fullMarker.at(-1) as ListMarker;
     const ordered = !UNORDERED_MARKERS.includes(marker);
-    const start = ordered ? Number(marker.slice(0, fullMarker.length)) : undefined;
+    const start = ordered ? Number(marker.slice(0, -1)) : undefined;
     const markerWidth = fullMarker.length;
 
     const spaces = countLeadingSpaces(remaining);
@@ -35,7 +35,7 @@ export class Marker {
     return {
       ordered,
       marker,
-      start, // TODO: fix this being NaN on '-' marker
+      start,
       indent,
       markerWidth,
       padding,
