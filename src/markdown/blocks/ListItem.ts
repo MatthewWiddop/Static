@@ -2,6 +2,7 @@ import type { Cursor } from '../Cursor.ts';
 import { type BlockParser, Parser } from '../Parser.ts';
 import type { ListItemNode } from '../ast';
 import { Marker } from '../Marker.ts';
+import { isEmptyLine } from '../../utils.ts';
 
 export class ListItemParser implements BlockParser<ListItemNode> {
   start(cursor: Cursor): ListItemNode | null {
@@ -21,11 +22,10 @@ export class ListItemParser implements BlockParser<ListItemNode> {
   }
 
   continue(cursor: Cursor, block: ListItemNode): boolean {
-    const marker = Marker.parse(cursor.current)
-    if (!marker || marker.indent < block.indent) return false;
+    if (!this.isListItemContinuation(cursor, block)) return false;
     
     cursor.col = block.indent;
-    return false;
+    return true;
   }
 
   eat(cursor: Cursor, block: ListItemNode): void {
@@ -33,5 +33,13 @@ export class ListItemParser implements BlockParser<ListItemNode> {
     const child = Parser.createBlock(cursor);
     if (!child) return;
     block.children.push(child);
+  }
+
+  private isListItemContinuation(cursor: Cursor, block: ListItemNode): boolean {
+    const newMarker = Marker.parse(cursor.current);
+    if (newMarker && newMarker.indent < block.indent) return false;
+
+    const leadingText = cursor.peek().slice(cursor.col, block.indent);
+    return isEmptyLine(leadingText);
   }
 }

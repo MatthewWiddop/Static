@@ -5,11 +5,9 @@ import { DocumentParser, BlockQuoteParser, CodeBlockParser, HeadingParser, ListP
 import { isEmptyLine } from '../utils.ts';
 
 export interface ParserCtx {
-  interrupt: boolean;
 }
 
 const defaultParserCtx: ParserCtx = {
-  interrupt: false
 }
 
 // TODO:
@@ -63,11 +61,7 @@ export class Parser {
     }
 
     while (!cursor.eof) {
-      let canParse = [];
-      for (const block of open) {
-        parser = getParser(block.type);
-        canParse.push(parser.continue(cursor, block));
-      }
+      let canParse = open.map(block => getParser(block.type).continue(cursor, block));
 
       const newBlock = this.createBlock(cursor);
       last = open.at(-1)!;
@@ -93,6 +87,8 @@ export class Parser {
 
       last = open.at(-1)!;
       getParser(last.type).eat(cursor, last);
+
+      console.log(open.map(block => block.type));
       
       cursor.continue();
     }

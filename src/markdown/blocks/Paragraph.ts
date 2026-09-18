@@ -13,7 +13,7 @@ export class ParagraphParser implements BlockParser<ParagraphNode> {
   }
 
   public continue(cursor: Cursor, _: ParagraphNode): boolean {
-    return !isEmptyLine(cursor.current); // TODO: add back detectInterrupt if not working
+    return !isEmptyLine(cursor.current);
   }
 
   public eat(cursor: Cursor, block: ParagraphNode): void {
@@ -24,7 +24,3 @@ export class ParagraphParser implements BlockParser<ParagraphNode> {
   }
 }
 
-const detectInterruptingBlock = (cursor: Cursor): boolean => {
-  const interruptingBlock = Parser.createBlock(cursor, { interrupt: true });
-  return interruptingBlock !== null;
-}

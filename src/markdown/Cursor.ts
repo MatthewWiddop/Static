@@ -11,7 +11,7 @@ export interface Cursor {
   pos: Point;
   eof: boolean;
 
-  peek(offset?: number): string | null;
+  peek(offset?: number): string;
   continue(offset?: number): boolean;
   indent(offset?: number): boolean;
 }
@@ -21,10 +21,10 @@ export class LineCursor implements Cursor {
   public row: number = 0;
   public col: number = 0;
 
-  public peek(offset: number = 0): string | null {
+  public peek(offset: number = 0): string {
     const target = this.row + offset;
-    if (target > this.lines.length) {
-      return null;
+    if (target > this.lines.length || target < 0) {
+      return '';
     }
     return this.lines[target];
   }
