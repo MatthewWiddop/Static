@@ -21,7 +21,7 @@ export class HeadingParser implements BlockParser<HeadingNode> {
     };
   }
 
-  public continue(cursor: Cursor, block: HeadingNode): boolean {
+  public continue(_cursor: Cursor, _block: HeadingNode): boolean {
     return false;
   }
 

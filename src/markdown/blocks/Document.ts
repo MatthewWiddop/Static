@@ -12,7 +12,7 @@ export class DocumentParser implements BlockParser<DocumentNode> {
     }
   }
 
-  public continue(cursor: Cursor, block: DocumentNode): boolean {
+  public continue(_cursor: Cursor, _block: DocumentNode): boolean {
     return true;
   }
 

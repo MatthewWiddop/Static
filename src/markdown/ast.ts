@@ -10,7 +10,7 @@ export type BlockNode =
   | ListItemNode
   | CodeBlockNode
   | BlockQuoteNode
-  | ThematicBreakNode
+  | ThematicBreakNode;
 
 export type InlineNode =
   | TextNode
@@ -19,7 +19,6 @@ export type InlineNode =
   | InlineCodeNode
   | LinkNode
   | ImageNode;
-
 
 export type BlockNodeType = 
   | 'Document'
@@ -31,7 +30,13 @@ export type BlockNodeType =
   | 'BlockQuote'
   | 'ThematicBreak';
 
-export type InlineNdeType = InlineNode['type'];
+
+export type BlockCtx<T extends BlockNode = BlockNode> = {
+  block: T;
+  ctx?: Record<string, unknown>;
+}
+
+export type InlineNodeType = InlineNode['type'];
 
 export type BulletListMarker = '-' | '+' | '*';
 export type OrderedListMarker = '.' | ')';
@@ -39,8 +44,11 @@ export type ListMarker = BulletListMarker | OrderedListMarker;
 
 export type ContainerNode = {
   type: BlockNodeType;
-  indent: number;
   children: BlockNode[];
+}
+
+export type ContainerCtx = {
+  indent: number;
 }
 
 export const isContainerNode = (node: BlockNode): node is ContainerNode => {
@@ -65,64 +73,69 @@ export const isLeafNode = (node: BlockNode): node is LeafNode => {
   );
 }
 
-export type TextBlockNode = LeafNode & {
+export type TextBlockContext = {
   text: string;
-}
-
-export const isTextBlockNode = (node: BlockNode): node is TextBlockNode => {
-  return (
-    node.type === 'Heading' ||
-    node.type === 'Paragraph' ||
-    node.type === 'CodeBlock'
-  );
 }
 
 export type DocumentNode = ContainerNode & {
   type: 'Document';
 }
 
-export type HeadingNode = TextBlockNode & {
+export type DocumentWrapper = {
+  block: DocumentNode;
+}
+
+export type HeadingNode = LeafNode & {
   type: 'Heading';
   depth: number;
 }
 
-export type ParagraphNode = TextBlockNode & {
+export type HeadingWrapper = {
+  block: HeadingNode;
+}
+
+export type ParagraphNode = LeafNode & {
   type: 'Paragraph';
+}
+
+export type ParagraphWrapper = {
+  block: ParagraphNode;
+  context: TextBlockContext;
 }
 
 export type ListNode = ContainerNode & {
   type: 'List';
-  marker: ParsedListMarker;
+  ordered: boolean;
+  start?: number;
   children: ListItemNode[];
+}
+
+export type ListNodeCtx = ContainerCtx & {
+  marker: ParsedListMarker
 }
 
 export type ListItemNode = ContainerNode & {
   type: 'ListItem';
 }
 
-export type CodeBlockNode = TextBlockNode & {
+export type CodeBlockNode = LeafNode & {
   type: 'CodeBlock';
-  fenced: boolean;
-  indent: number;
+  language?: string;
+  text: string;
 }
-
 
 export type FenceType = '`' | '~';
 
-export type FencedCodeBlockNode = CodeBlockNode & {
-  language?: string;
+export type CodeBlockContext = ContainerContext & {
+  fenced: boolean;
+  indent: number;
   fenceType: FenceType;
   fenceCount: number;
   fenceIndent: number;
 }
 
-export const isFencedCodeBlockNode = (block: CodeBlockNode): block is FencedCodeBlockNode => {
-  return block.fenced;
-}
-
 export type BlockQuoteNode = ContainerNode & {
   type: 'BlockQuote';
-  children: BlockNode[];
 }
 
 export type ThematicBreakNode = LeafNode & {
@@ -159,3 +172,4 @@ export type LinkNode = {
   destination: string;
   title?: string;
 }
+

@@ -1,43 +1,44 @@
 import { Marker } from '../Marker.ts';
 import type { Cursor } from '../Cursor.ts';
 import type { BlockParser } from '../Parser.ts';
-import type { ListItemNode, ListNode } from '../ast.ts';
+import type { ListItemNode, ListNode, BlockCtx } from '../ast.ts';
 import { ListItemParser } from './ListItem.ts';
 
 const itemParser = new ListItemParser();
   
-const getListChildren = (cursor: Cursor): ListItemNode[] => {
-  const child = itemParser.start(cursor);
-  return !child ? [] : [child];
-}
-
 export class ListParser implements BlockParser<ListNode> {
   public readonly interrupt = true;
   
-  public start(cursor: Cursor): ListNode | null {
+  public start(cursor: Cursor): BlockCtx<ListNode> | null {
     const listMarker = Marker.parse(cursor.current);
     if (!listMarker) return null;
 
-
     return {
-      type: 'List',
-      indent: cursor.col,
-      marker: listMarker,
-      children: getListChildren(cursor)
+      block: {
+        type: 'List',
+        ordered: listMarker.ordered,
+        start: listMarker.start,
+        children: itemParser.start(cursor)
+      },
+      ctx: {
+        indent: cursor.col,
+        marker: listMarker,
+      }
     };
   }
 
-  public continue(cursor: Cursor, block: ListNode): boolean {
+  public continue(cursor: Cursor, { ctx }: BlockCtx<ListNode>): boolean {
     const newMarker = Marker.parse(cursor.current);
-    if (!newMarker || !Marker.same(block.marker, newMarker)) return false;
+    if (!newMarker || !Marker.same(ctx.marker, newMarker)) return false;
     
     return true;
   }
 
-  public eat(cursor: Cursor, block: ListNode): void {
-    cursor.col = block.indent;
-    const children = getListChildren(cursor);
-    block.children.push(...children);
+  public eat(cursor: Cursor, { block, ctx }: ListNode, open: BlockCtx[]): void {
+    cursor.col = ctx.indent;
+    const childCtx = itemParser.start(cursor);
+    block.children.push(...childCtx.block);
+    open.
   }
 }
 

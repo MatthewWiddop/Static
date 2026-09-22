@@ -1,25 +1,29 @@
-import { Parser, type BlockParser } from '../Parser.ts';
-import type { ParagraphNode } from '../ast.ts';
+import { type BlockParser } from '../Parser.ts';
+import type { ParagraphNode, BlockCtx } from '../ast.ts';
 import { isEmptyLine } from '../../utils.ts';
 import type { Cursor } from '../Cursor.ts';
 
 export class ParagraphParser implements BlockParser<ParagraphNode> {
-  public start(cursor: Cursor): ParagraphNode | null {
+  public start(cursor: Cursor): BlockCtx<ParagraphNode> | null {
     if (isEmptyLine(cursor.current)) return null;
     return {
-      type: 'Paragraph',
-      text: ''
+      block: {
+        type: 'Paragraph'
+      },
+      ctx: {
+        text: ''
+      }
     };
   }
 
-  public continue(cursor: Cursor, _: ParagraphNode): boolean {
+  public continue(cursor: Cursor, _blockCtx: BlockCtx<ParagraphNode>): boolean {
     return !isEmptyLine(cursor.current);
   }
 
-  public eat(cursor: Cursor, block: ParagraphNode): void {
+  public eat(cursor: Cursor, { block, ctx }: BlockCtx<ParagraphNode>, _open: BlockCtx[]): void {
     if (!cursor.current) return;
     const newLine = cursor.current.trim();
-    block.text += block.text ? '\n' + newLine : newLine;
+    ctx!.text += ctx.text ? '\n' + newLine : newLine;
     cursor.indent();
   }
 }

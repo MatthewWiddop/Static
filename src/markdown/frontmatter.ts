@@ -1,12 +1,12 @@
 import { load } from 'js-yaml';
 
 type FrontmatterData = {
-  [key: string]: unknown
+  [key: string]: unknown;
 };
 
 type FrontmatterResult = {
-  metadata: FrontmatterData,
-  body: string
+  metadata: FrontmatterData;
+  body: string;
 }
 
 export const parseFrontmatter = (text: string): FrontmatterResult => {
@@ -17,6 +17,7 @@ export const parseFrontmatter = (text: string): FrontmatterResult => {
       body: text
     }
   }
+
   let lineIdx = lines.findIndex(line => line === '---')
   for (; lineIdx < lines.length && lines[lineIdx] !== '---'; lineIdx++) { }
   const yamlContent = lines.slice(1, lineIdx).join('\n');

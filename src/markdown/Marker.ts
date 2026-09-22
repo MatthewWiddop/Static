@@ -29,7 +29,7 @@ export class Marker {
     const spaces = countLeadingSpaces(remaining);
     const padding = calcBlockIndent(spaces);
     if (padding === 0 && remaining.length > 0) {
-      return null ;
+      return null;
     }
 
     return {
