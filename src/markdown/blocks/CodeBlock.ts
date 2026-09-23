@@ -64,8 +64,6 @@ const detectIndentedCodeEnd = (cursor: Cursor): boolean => {
 }
 
 export class CodeBlockParser implements BlockParser<CodeBlockNode> {
-  public interrupt = true;
-
   public start(cursor: Cursor): BlockCtx<CodeBlockNode> | null {
     return detectFencedCodeStart(cursor) ?? detectIndentedCodeStart(cursor);
   }

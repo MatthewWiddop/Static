@@ -21,8 +21,6 @@ const parseBlockQuote = (cursor: Cursor): number | null => {
 };
 
 export class BlockQuoteParser implements BlockParser<BlockQuoteNode> {
-  public readonly interrupt = true;
-
   public start(cursor: Cursor): BlockCtx<BlockQuoteNode> | null {
     let quoteIndent = parseBlockQuote(cursor);
     if (!quoteIndent) return null;

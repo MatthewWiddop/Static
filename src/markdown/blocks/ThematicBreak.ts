@@ -5,8 +5,6 @@ import type { Cursor } from '../Cursor.ts';
 const BREAK_REGEX = /^ {0,3}(?:(?:\*\s*){3,}|(?:\-\s*){3,}|(?:_\s*){3,})\s*$/;
 
 export class ThematicBreakParser implements BlockParser<ThematicBreakNode> {
-  public readonly interrupt = true;
-
   public start(cursor: Cursor): BlockCtx<ThematicBreakNode> | null {
     if (!cursor.current || !BREAK_REGEX.test(cursor.current)) {
       return null;

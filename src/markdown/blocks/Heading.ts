@@ -5,8 +5,6 @@ import type { BlockParser } from '../Parser.ts';
 const HEADING_REGEX = /^ {0,3}(#{1,6})(?:\s+(.*?)(?:\s+(?<!\\)#+)?\s*)$/;
 
 export class HeadingParser implements BlockParser<HeadingNode> {
-  public readonly interrupt = true;
-
   public start(cursor: Cursor): BlockCtx<HeadingNode> | null {
     const match = cursor.current?.match(HEADING_REGEX);
     if (!match) return null;

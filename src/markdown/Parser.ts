@@ -6,7 +6,6 @@ import { isEmptyLine, reverseRange } from '../utils.ts';
 import { createFullOptions } from '../types/common.ts';
 
 export interface BlockParser<T extends BlockNode = BlockNode> {
-  interrupt?: boolean;
   start(cursor: Cursor): BlockCtx<T> | null;
   continue(cursor: Cursor, ctx: BlockCtx<T>): boolean;
   eat(cursor: Cursor, ctx: BlockCtx<T>): void;
