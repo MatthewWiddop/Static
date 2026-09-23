@@ -1,4 +1,4 @@
-import type { FencedCodeBlockNode, FenceType, CodeBlockNode } from '../ast.ts';
+import type { FenceType, CodeBlockNode, BlockCtx, FencedCodeBlockCtx } from '../ast.ts';
 import { isFencedCodeBlockNode } from '../ast.ts';
 import type { BlockParser } from '../Parser.ts'
 import type { Cursor } from '../Cursor.ts';
@@ -8,7 +8,7 @@ const FENCE_START = /^( {0,3})(`{3,}|~{3,})\s*([^\s`]*)\s*$/;
 const FENCE_END = /^ {0,3}(`+|~+)\s*/;
 const SPACE = ' ';
 
-const detectFencedCodeStart = (cursor: Cursor): FencedCodeBlockNode | null => {
+const detectFencedCodeStart = (cursor: Cursor): BlockCtx<CodeBlockNode> | null => {
   const match = cursor.current?.match(FENCE_START);
   if (!match) return null;
 
@@ -16,33 +16,42 @@ const detectFencedCodeStart = (cursor: Cursor): FencedCodeBlockNode | null => {
   const indent = cursor.col;
   cursor.indent();
   return {
-    type: 'CodeBlock',
-    fenced: true,
-    fenceType: fence as FenceType,
-    fenceCount: fence.length,
-    fenceIndent: spaces.length,
-    indent,
-    text: ''
+    block: {
+      type: 'CodeBlock',
+      language: language || undefined,
+      text: ''
+    },
+    ctx: {
+      fenced: true,
+      fenceType: fence as FenceType,
+      fenceCount: fence.length,
+      fenceIndent: spaces.length,
+      indent
+    }
   };
 }
 
-const detectIndentedCodeStart = (cursor: Cursor): CodeBlockNode | null => {
+const detectIndentedCodeStart = (cursor: Cursor): BlockCtx<CodeBlockNode> | null => {
   if (!cursor.current.startsWith(SPACE.repeat(4)) || isEmptyLine(cursor.current)) return null;
 
   return {
-    type: 'CodeBlock',
-    fenced: false,
-    indent: cursor.col,
-    text: ''
+    block: {
+      type: 'CodeBlock',
+      text: ''
+    },
+    ctx: {
+      fenced: false,
+      indent: cursor.col,
+    }
   };
 }
 
-const detectFencedCodeEnd = (cursor: Cursor, block: FencedCodeBlockNode): boolean => {
+const detectFencedCodeEnd = (cursor: Cursor, ctx: FencedCodeBlockCtx): boolean => {
   const match = cursor.current.match(FENCE_END);
   if (!match) return false;
 
   const [, fence] = match;
-  if (fence[0] !== block.fenceType || fence.length < block.fenceCount) return false;
+  if (fence[0] !== ctx.fenceType || fence.length < ctx.fenceCount) return false;
 
   return true;
 }
@@ -57,19 +66,16 @@ const detectIndentedCodeEnd = (cursor: Cursor): boolean => {
 export class CodeBlockParser implements BlockParser<CodeBlockNode> {
   public interrupt = true;
 
-  public start(cursor: Cursor): CodeBlockNode | null {
-    const codeBlock = detectFencedCodeStart(cursor) ?? detectIndentedCodeStart(cursor);
-    if (!codeBlock) return null;
-    
-    return codeBlock;
+  public start(cursor: Cursor): BlockCtx<CodeBlockNode> | null {
+    return detectFencedCodeStart(cursor) ?? detectIndentedCodeStart(cursor);
   }
 
-  public continue(cursor: Cursor, block: CodeBlockNode): boolean {
+  public continue(cursor: Cursor, { block, ctx }: BlockCtx<CodeBlockNode>): boolean {
     const line = cursor.current;
-    if (cursor.col < block.indent && !isEmptyLine(line)) return false;
+    if (cursor.col < ctx.indent && !isEmptyLine(line)) return false;
 
-    const endBlock = isFencedCodeBlockNode(block)
-      ? detectFencedCodeEnd(cursor, block)
+    const endBlock = isFencedCodeBlockNode(ctx)
+      ? detectFencedCodeEnd(cursor, ctx)
       : detectIndentedCodeEnd(cursor);
 
     if (endBlock) {
@@ -80,10 +86,10 @@ export class CodeBlockParser implements BlockParser<CodeBlockNode> {
     return true;
   }
 
-  public eat(cursor: Cursor, block: CodeBlockNode): void {
-    const newLine = trimIndentation(cursor.current, block.indent)
-    block.text += block.text ? '\n' + newLine : newLine
-    cursor.indent()
+  public eat(cursor: Cursor, { block, ctx }: BlockCtx<CodeBlockNode>): void {
+    const newLine = trimIndentation(cursor.current, ctx.indent);
+    block.text += block.text ? '\n' + newLine : newLine;
+    cursor.indent();
   }
 }
 

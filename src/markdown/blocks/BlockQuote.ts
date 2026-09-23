@@ -1,7 +1,7 @@
 import { Parser, type BlockParser } from '../Parser.ts';
 import type { Cursor } from '../Cursor';
 import { countLeadingSpaces } from '../../utils.ts';
-import type { BlockQuoteNode } from '../ast.ts';
+import type { BlockCtx, BlockQuoteNode } from '../ast.ts';
 
 const QUOTE_REGEX = /^ {0,3}>/;
 const QUOTE_MARKER = '>';
@@ -23,22 +23,29 @@ const parseBlockQuote = (cursor: Cursor): number | null => {
 export class BlockQuoteParser implements BlockParser<BlockQuoteNode> {
   public readonly interrupt = true;
 
-  public start(cursor: Cursor): BlockQuoteNode | null {
+  public start(cursor: Cursor): BlockCtx<BlockQuoteNode> | null {
     let quoteIndent = parseBlockQuote(cursor);
     if (!quoteIndent) return null;
 
     cursor.indent(quoteIndent);
-    const child = Parser.createBlock(cursor);
-    const children = !child ? [] : [child];
+    const childCtx = Parser.createBlock(cursor);
+    const children = childCtx ? [childCtx.block] : [];
+    if (childCtx) {
+      Parser.open.push(childCtx);
+    }
 
     return {
-      type: 'BlockQuote',
-      indent: quoteIndent,
-      children
+      block: {
+        type: 'BlockQuote',
+        children
+      },
+      ctx: {
+        indent: quoteIndent,
+      }
     };
   }
 
-  public continue(cursor: Cursor, _: BlockQuoteNode): boolean {
+  public continue(cursor: Cursor, _blockCtx: BlockCtx<BlockQuoteNode>): boolean {
     const quoteIndent = parseBlockQuote(cursor);
     if (!quoteIndent) return false;
 
@@ -46,12 +53,13 @@ export class BlockQuoteParser implements BlockParser<BlockQuoteNode> {
     return true;
   }
 
-  public eat(cursor: Cursor, block: BlockQuoteNode): void {
-    cursor.col = block.indent;
-    const child = Parser.createBlock(cursor);
-    if (!child) return;
+  public eat(cursor: Cursor, blockCtx: BlockCtx<BlockQuoteNode>): void {
+    cursor.col = blockCtx.ctx.indent;
+    const childCtx = Parser.createBlock(cursor);
+    if (!childCtx) return;
 
-    block.children.push(child);
+    blockCtx.block.children.push(childCtx.block);
+    Parser.open.push(childCtx);
   }
 }
 

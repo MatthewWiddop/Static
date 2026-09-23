@@ -30,10 +30,20 @@ export type BlockNodeType =
   | 'BlockQuote'
   | 'ThematicBreak';
 
+export type BlockCtxMap = {
+  Document: {},
+  Heading: TextBlockCtx,
+  Paragraph: TextBlockCtx,
+  List: ListNodeCtx,
+  ListItem: ContainerCtx,
+  CodeBlock: CodeBlockCtx | FencedCodeBlockCtx,
+  BlockQuote: ContainerCtx,
+  ThematicBreak: {}
+}
 
 export type BlockCtx<T extends BlockNode = BlockNode> = {
   block: T;
-  ctx?: Record<string, unknown>;
+  ctx: BlockCtxMap[T['type']];
 }
 
 export type InlineNodeType = InlineNode['type'];
@@ -73,7 +83,7 @@ export const isLeafNode = (node: BlockNode): node is LeafNode => {
   );
 }
 
-export type TextBlockContext = {
+export type TextBlockCtx = {
   text: string;
 }
 
@@ -96,11 +106,6 @@ export type HeadingWrapper = {
 
 export type ParagraphNode = LeafNode & {
   type: 'Paragraph';
-}
-
-export type ParagraphWrapper = {
-  block: ParagraphNode;
-  context: TextBlockContext;
 }
 
 export type ListNode = ContainerNode & {
@@ -126,12 +131,18 @@ export type CodeBlockNode = LeafNode & {
 
 export type FenceType = '`' | '~';
 
-export type CodeBlockContext = ContainerContext & {
+export type CodeBlockCtx = ContainerCtx & {
   fenced: boolean;
-  indent: number;
+}
+
+export type FencedCodeBlockCtx = CodeBlockCtx & {
   fenceType: FenceType;
   fenceCount: number;
   fenceIndent: number;
+}
+
+export const isFencedCodeBlockNode = (ctx: CodeBlockCtx): ctx is FencedCodeBlockCtx => {
+  return ctx.fenced;
 }
 
 export type BlockQuoteNode = ContainerNode & {

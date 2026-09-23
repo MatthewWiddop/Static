@@ -3,25 +3,28 @@ import type { Cursor } from '../Cursor.ts';
 import type { BlockParser } from '../Parser.ts';
 import type { ListItemNode, ListNode, BlockCtx } from '../ast.ts';
 import { ListItemParser } from './ListItem.ts';
+import { Parser } from '../Parser.ts';
 
 const itemParser = new ListItemParser();
   
 export class ListParser implements BlockParser<ListNode> {
-  public readonly interrupt = true;
-  
   public start(cursor: Cursor): BlockCtx<ListNode> | null {
     const listMarker = Marker.parse(cursor.current);
     if (!listMarker) return null;
+
+    const indent = cursor.col;
+    const childCtx = itemParser.start(cursor)!
+    Parser.open.push(childCtx);
 
     return {
       block: {
         type: 'List',
         ordered: listMarker.ordered,
         start: listMarker.start,
-        children: itemParser.start(cursor)
+        children: [childCtx.block]
       },
       ctx: {
-        indent: cursor.col,
+        indent,
         marker: listMarker,
       }
     };
@@ -34,11 +37,13 @@ export class ListParser implements BlockParser<ListNode> {
     return true;
   }
 
-  public eat(cursor: Cursor, { block, ctx }: ListNode, open: BlockCtx[]): void {
+  public eat(cursor: Cursor, { block, ctx }: BlockCtx<ListNode>): void {
     cursor.col = ctx.indent;
-    const childCtx = itemParser.start(cursor);
-    block.children.push(...childCtx.block);
-    open.
+    console.log('inside list');
+    console.log(cursor.current);
+    const childCtx = itemParser.start(cursor)!;
+    block.children.push(childCtx.block);
+    Parser.open.push(childCtx);
   }
 }
 

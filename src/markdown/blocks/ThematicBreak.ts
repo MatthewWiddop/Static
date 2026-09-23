@@ -16,7 +16,8 @@ export class ThematicBreakParser implements BlockParser<ThematicBreakNode> {
     return {
       block: {
         type: 'ThematicBreak'
-      }
+      },
+      ctx: {}
     }
   }
 
@@ -24,6 +25,6 @@ export class ThematicBreakParser implements BlockParser<ThematicBreakNode> {
     return false;
   }
 
-  public eat(_cursor: Cursor, _block: BlockCtx<ThematicBreakNode>, _open: BlockCtx[]): void { }
+  public eat(_cursor: Cursor, _block: BlockCtx<ThematicBreakNode>): void { }
 }
 

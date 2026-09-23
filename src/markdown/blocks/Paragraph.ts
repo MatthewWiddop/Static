@@ -20,10 +20,10 @@ export class ParagraphParser implements BlockParser<ParagraphNode> {
     return !isEmptyLine(cursor.current);
   }
 
-  public eat(cursor: Cursor, { block, ctx }: BlockCtx<ParagraphNode>, _open: BlockCtx[]): void {
+  public eat(cursor: Cursor, { ctx }: BlockCtx<ParagraphNode>): void {
     if (!cursor.current) return;
     const newLine = cursor.current.trim();
-    ctx!.text += ctx.text ? '\n' + newLine : newLine;
+    ctx.text += ctx.text ? '\n' + newLine : newLine;
     cursor.indent();
   }
 }

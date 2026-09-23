@@ -1,22 +1,15 @@
-import type { BlockCtx, BlockNode, BlockNodeType, BlockCtx, ContainerNode, DocumentNode } from './ast.ts';
+import type { BlockCtx, BlockNode, BlockNodeType, ContainerNode, DocumentNode } from './ast.ts';
 import { isContainerNode } from './ast.ts';
 import { LineCursor, type Cursor } from './Cursor.ts';
 import { DocumentParser, BlockQuoteParser, CodeBlockParser, HeadingParser, ListParser, ListItemParser, ParagraphParser, ThematicBreakParser } from './blocks/index.ts'
-import { isEmptyLine } from '../utils.ts';
+import { isEmptyLine, reverseRange } from '../utils.ts';
 import { createFullOptions } from '../types/common.ts';
-
-// TODO:
-// add corresponding context for certain block types and have the open block be an array of node, context pairs
-// - context should be optional, since certain blocks don't use it
-// - function should check that a function has a context and return the correct one e.g. text container indent
-// - open blocks that are being closed should be parsed and the inline array added to the ast
-// update closeSatiatedBlocks to call the inline parser with the text property of the node
 
 export interface BlockParser<T extends BlockNode = BlockNode> {
   interrupt?: boolean;
   start(cursor: Cursor): BlockCtx<T> | null;
   continue(cursor: Cursor, ctx: BlockCtx<T>): boolean;
-  eat(cursor: Cursor, ctx: BlockCtx<T>, open: BlockCtx[]): void;
+  eat(cursor: Cursor, ctx: BlockCtx<T>): void;
 }
 
 const BLOCK_PARSERS: Record<BlockNodeType, BlockParser> = {
@@ -61,27 +54,36 @@ export class Parser {
     }
 
     while (!cursor.eof) {
-      let canConsume = this.open.map(({ block }) => getParser(block.type).continue(cursor, block));
+      console.log(cursor.current);
+      const canConsume = this.open.map((blockCtx) => getParser(blockCtx.block.type).continue(cursor, blockCtx));
+      console.log(cursor.current);
+      console.log(canConsume);
 
-      const newBlockCtx = this.createBlock(cursor);
       last = this.open.at(-1)!;
+      const newBlockCtx = this.createBlock(cursor);
+      this.open.splice(this.open.indexOf(last) + 1);
       if (newBlockCtx && !isContinuation(newBlockCtx.block.type, last.block.type)) {
-        const parent = findLastOpenContainerBlock(open, canConsume);
-        closeSatiatedBlocks(canConsume, { container: true });
+        const parent = this.findLastOpenContainerBlock(canConsume);
+        console.log(`parent: ${parent.block.type}`);
+        this.closeSatiatedBlocks(canConsume, { container: true });
 
         parser = getParser(parent.block.type) 
-        parser.eat(cursor, parent, open);
+        parser.eat(cursor, parent);
+        reverseRange(this.open, this.open.indexOf(parent) + 1);
       } else if (isEmptyLine(cursor.current)) {
-        closeSatiatedBlocks(open, canConsume);
+        this.closeSatiatedBlocks(canConsume);
       }
 
-      last = open.at(-1)!;
+      last = this.open.at(-1)!;
       getParser(last.block.type).eat(cursor, last);
+      console.log(this.open.map(blockCtx => blockCtx.block.type));
+      console.log('---');
 
       cursor.continue();
     }
 
-    return root;
+    this.open = [];
+    return root.block;
   }
 
   static createBlock(cursor: Cursor): BlockCtx | null {
@@ -105,10 +107,9 @@ export class Parser {
   }
 
   static findLastOpenContainerBlock(
-    open: BlockCtx[], 
     canConsume: boolean[]
   ): BlockCtx<ContainerNode> {
-    return open.findLast((blockCtx, idx) => {
+    return this.open.findLast((blockCtx, idx) => {
       return canConsume[idx] && isContainerNode(blockCtx.block);
     }) as BlockCtx<ContainerNode>;
   }
