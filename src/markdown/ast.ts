@@ -15,10 +15,10 @@ export type BlockNode =
 export type InlineNode =
   | TextNode
   | EmphasisNode
-  | StrongNode
-  | InlineCodeNode
   | LinkNode
-  | ImageNode;
+  | ImageNode
+  | InlineCodeNode
+  | HardBreak;
 
 export type BlockNodeType = 
   | 'Document'
@@ -83,6 +83,10 @@ export const isLeafNode = (node: BlockNode): node is LeafNode => {
   );
 }
 
+export const isHeadingOrParagraphCtx = (blockCtx: BlockCtx): blockCtx is BlockCtx<HeadingNode | ParagraphNode> => {
+  return blockCtx.block.type === 'Heading' || blockCtx.block.type === 'Paragraph';
+}
+
 export type TextBlockCtx = {
   text: string;
 }
@@ -91,21 +95,15 @@ export type DocumentNode = ContainerNode & {
   type: 'Document';
 }
 
-export type DocumentWrapper = {
-  block: DocumentNode;
-}
-
 export type HeadingNode = LeafNode & {
   type: 'Heading';
   depth: number;
-}
-
-export type HeadingWrapper = {
-  block: HeadingNode;
+  children: InlineNode[];
 }
 
 export type ParagraphNode = LeafNode & {
   type: 'Paragraph';
+  children: InlineNode[];
 }
 
 export type ListNode = ContainerNode & {
@@ -161,26 +159,27 @@ export type ImageNode = {
 
 export type EmphasisNode = {
   type: 'Emphasis';
-  text: string;
+  strong: boolean;
+  children: InlineNode[];
 }
 
 export type InlineCodeNode = {
   type: 'InlineCode';
-  value: string;
+  text: string;
 }
 
 export type TextNode = {
   type: 'Text';
-  value: string;
-}
-
-export type StrongNode = {
-  type: 'Strong';
+  text: string;
 }
 
 export type LinkNode = {
   type: 'Link';
   destination: string;
   title?: string;
+}
+
+export type HardBreak = {
+  type: 'HardBreak';
 }
 

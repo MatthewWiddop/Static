@@ -1,4 +1,3 @@
-
 export const MIN_SPACES = 1;
 export const MAX_SPACES = 4;
 const SPACE = ' ';
@@ -45,3 +44,18 @@ export const reverseRange = <T>(
     end--;
   }
 }
+
+export const countRepeatingChar = (str: string): number => {
+  if (str.length === 0) return -1;
+
+  const target = str[0];
+  let count = 0;
+  do {
+    count++;
+  } while (count < str.length && str[count] === target);
+
+  return count;
+}
+
+export const punctuation = '!"#$£%%&\'()*+,-./:;<=>?@[\\]^_`{|}~¬';
+

@@ -15,7 +15,8 @@ export class HeadingParser implements BlockParser<HeadingNode> {
     return {
       block: {
         type: 'Heading',
-        depth: hashes.length
+        depth: hashes.length,
+        children: []
       },
       ctx: {
         text: ''

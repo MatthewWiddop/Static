@@ -1,9 +1,10 @@
 import type { BlockCtx, BlockNode, BlockNodeType, ContainerNode, DocumentNode } from './ast.ts';
-import { isContainerNode } from './ast.ts';
+import { isContainerNode, isHeadingOrParagraphCtx } from './ast.ts';
 import { LineCursor, type Cursor } from './Cursor.ts';
 import { DocumentParser, BlockQuoteParser, CodeBlockParser, HeadingParser, ListParser, ListItemParser, ParagraphParser, ThematicBreakParser } from './blocks/index.ts'
 import { isEmptyLine, reverseRange } from '../utils.ts';
 import { createFullOptions } from '../types/common.ts';
+import { InlineParser } from './InlineParser.ts';
 
 export interface BlockParser<T extends BlockNode = BlockNode> {
   start(cursor: Cursor): BlockCtx<T> | null;
@@ -38,7 +39,6 @@ const defaultFullBlocksOptions: closeSatiatedBlocksOptions = {
   container: true
 }
 
-
 export class Parser {
   static open: BlockCtx[] = [];
 
@@ -52,7 +52,7 @@ export class Parser {
       cursor.continue();
     }
 
-    while (!cursor.eof) {
+    while (!cursor.eof()) {
       console.log(cursor.current);
       const canConsume = this.open.map((blockCtx) => getParser(blockCtx.block.type).continue(cursor, blockCtx));
       console.log(cursor.current);
@@ -100,9 +100,16 @@ export class Parser {
     options: Partial<closeSatiatedBlocksOptions> = {}
   ): void {
     const fullOptions = createFullOptions(options, defaultFullBlocksOptions);
-    this.open.splice(this.open.findLastIndex(({ block }, idx) => {
+    const lastOpenBlockIdx = this.open.findLastIndex(({ block }, idx) => {
       return canConsume[idx] && (!fullOptions.container || isContainerNode(block));
-    }) + 1);
+    });
+    while (this.open.length > lastOpenBlockIdx + 1) {
+      const satiatedBlockCtx = this.open.pop()!;
+      if (isHeadingOrParagraphCtx(satiatedBlockCtx)) {
+        const { block: satiatedBlock, ctx } = satiatedBlockCtx;
+        satiatedBlock.children.push(...InlineParser.parse(ctx.text));
+      }
+    }
   }
 
   static findLastOpenContainerBlock(

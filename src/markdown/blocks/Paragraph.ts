@@ -8,7 +8,8 @@ export class ParagraphParser implements BlockParser<ParagraphNode> {
     if (isEmptyLine(cursor.current)) return null;
     return {
       block: {
-        type: 'Paragraph'
+        type: 'Paragraph',
+        children: []
       },
       ctx: {
         text: ''

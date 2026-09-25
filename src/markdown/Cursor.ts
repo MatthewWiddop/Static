@@ -9,11 +9,11 @@ export interface Cursor {
   col: number;
   current: string;
   pos: Point;
-  eof: boolean;
 
   peek(offset?: number): string;
   continue(offset?: number): boolean;
   indent(offset?: number): boolean;
+  eof(offset?: number): boolean;
 }
 
 export class LineCursor implements Cursor {
@@ -44,8 +44,8 @@ export class LineCursor implements Cursor {
     };
   }
 
-  public get eof(): boolean {
-    return this.row >= this.lines.length;
+  public eof(offset: number = 0): boolean {
+    return this.row + offset >= this.lines.length;
   }
 
   public continue(offset: number = 1): boolean {

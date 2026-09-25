@@ -46,3 +46,4 @@ The markdown parser supports the following elements from the [CommonMark Spec](h
 
 - An ordered list cannot interrupt a paragraph unless it starts with "1.", but the current implementation is forgiving.
 - List items cannot be empty in this implementation
+- Currently no option for soft line breaks to be rendered as hard line breaks
