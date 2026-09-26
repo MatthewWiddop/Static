@@ -176,6 +176,7 @@ export type TextNode = {
 export type LinkNode = {
   type: 'Link';
   destination: string;
+  text: InlineNode[];
   title?: string;
 }
 

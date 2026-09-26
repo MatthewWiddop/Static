@@ -1,6 +1,6 @@
 export interface Point {
   row: number;
-  column: number;
+  col: number;
 }
 
 export interface Cursor {
@@ -14,6 +14,7 @@ export interface Cursor {
   continue(offset?: number): boolean;
   indent(offset?: number): boolean;
   eof(offset?: number): boolean;
+  slice(start: Point, end: Point): string;
 }
 
 export class LineCursor implements Cursor {
@@ -40,7 +41,7 @@ export class LineCursor implements Cursor {
   public get pos(): Point {
     return {
       row: this.row,
-      column: this.col
+      col: this.col
     };
   }
 
@@ -61,6 +62,17 @@ export class LineCursor implements Cursor {
     }
     this.col = this.peek()?.length ?? 0;
     return false;
+  }
+
+  public slice(start: Point, end: Point): string {
+    const offset = start.row - this.pos.row;
+    let result = this.peek(offset).slice(start.col);
+    for (let currentRow = 1; currentRow < end.row; currentRow++) {
+      result += '\n' + this.peek(offset + currentRow);
+    }
+
+    result += '\n' + this.peek(end.row).slice(0, end.col);
+    return result;
   }
 
   public constructor(lines: string[]) {

@@ -1,62 +1,9 @@
-import type { InlineCodeNode, InlineNode, TextNode } from './ast.ts';
-import { countRepeatingChar, isEmptyLine, punctuation } from '../utils.ts';
-import type { Cursor } from './Cursor.ts';
+import type { ImageNode, InlineCodeNode, InlineNode, LinkNode, TextNode } from './ast.ts';
+import { countRepeatingChar, isEmptyLine, isPaddedString } from '../utils.ts';
+import { LineCursor, Point, type Cursor } from './Cursor.ts';
+import { DelimiterNode } from './Delimiter.ts';
 
-export type DelimiterType = '*' | '_' | '[' | '![';
-const DELIMITERS = ['*', '_', '[', '!['];
 const SPACE = ' ';
-
-export type Delimiter = {
-  type: DelimiterType;
-  canOpen: boolean;
-  canClose: boolean;
-  length: number;
-  active: boolean;
-}
-
-export const isLeftFlanking = (prevChar: string, nextChar: string): boolean => {
-  return (!punctuation.includes(nextChar) || `${punctuation} `.includes(prevChar)) &&
-    nextChar !== SPACE
-}
-
-export const isRightFlanking = (prevChar: string, nextChar: string): boolean => {
-  return (!punctuation.includes(prevChar) || `${punctuation} `.includes(nextChar)) &&
-    prevChar !== SPACE
-}
-
-export const canOpen = (delim: DelimiterType, prevChar: string, nextChar: string): boolean => {
-  return ['![', '[', '*'].includes(delim) || isLeftFlanking(prevChar, nextChar) && 
-    (!isRightFlanking(prevChar, nextChar) || punctuation.includes(prevChar));
-}
-
-export const canClose = (delim: DelimiterType, prevChar: string, nextChar: string): boolean => {
-  return delim === '*' || delim === '_' && isRightFlanking(prevChar, nextChar) &&
-    (!isLeftFlanking(prevChar, nextChar) || punctuation.includes(nextChar));
-}
-
-export const startDelimiter = (cursor: Cursor): Delimiter | null => {
-  if (!cursor.current) return null;
-
-  let matchedDelim = DELIMITERS.find(delim => cursor.current.startsWith(delim));
-  if (!matchedDelim) return null;
-
-  const type = matchedDelim as DelimiterType;
-  const prevChar = cursor.peek()[cursor.col - 1];
-  let length = '_*'.includes(type)
-    ? countRepeatingChar(cursor.current)
-    : type.length;
-
-  cursor.indent(length);
-  const nextChar = cursor.current[0] ?? SPACE;
-
-  return {
-    type,
-    length,
-    canOpen: canOpen(type, prevChar, nextChar),
-    canClose: canClose(type, prevChar, nextChar),
-    active: true
-  }
-}
 
 export const startCodeSpan = (cursor: Cursor): InlineCodeNode | null => {
   if (!cursor.current.startsWith('`')) return null;
@@ -71,12 +18,17 @@ export const startCodeSpan = (cursor: Cursor): InlineCodeNode | null => {
 
   if (endTickIdx === -1) return null;
 
-  const innerText = cursor.current.substring(0, endTickIdx).replaceAll('\n', SPACE);
+  const start = cursor.pos;
+  const end: Point = { row: start.row + endLine, col: endTickIdx };
+  const innerText = cursor.slice(start, end).replaceAll('\n', SPACE);
   if (innerText.length === 0) return null;
 
-  const text = !isEmptyLine(innerText) && innerText.at(-1) === SPACE && innerText.at(0) === SPACE
+  const text = !isEmptyLine(innerText) && isPaddedString(innerText)
     ? innerText.slice(1, -1)
-    : innerText
+    : innerText;
+
+  cursor.continue(end.row - start.row);
+  cursor.indent(end.col + length);
 
   return {
     type: 'InlineCode',
@@ -84,12 +36,74 @@ export const startCodeSpan = (cursor: Cursor): InlineCodeNode | null => {
   }
 }
 
-export class InlineParser {
-  static parse(text: string): InlineNode[] {
-    return [];
+export const lookForImageOrLink = (
+  cursor: Cursor,
+  delimiters: Delimiter[]
+): TextNode | LinkNode | ImageNode => {
+  // find [ or ![
+  // if not found, then return ] text node
+  // if inactive, then return ] text node
+  // else parse ahead for links, title
+  // call processEmphasis on text section
+  // set all [ markers to inactive before opening delimiter if link 
+    // why do we keep inactive delimiters on the stack?
+    //   not sure tbh
+    // do we remove only this inactive delimiter, or all delimiters above this one?
+    //   No, since they're all emphasis or strong emphasis
+  
+  const plainText: TextNode = {
+    type: 'Text',
+    text: ']'
   }
 
-  static processEmphasis(delimiters: Delimiter[]) {
+  const lastOpeningDelimiter = delimiters.findLast(delim => {
+    return delim.type === '[' || delim.type == '![';
+  });
 
+  if (!lastOpeningDelimiter) return plainText;
+  if (!lastOpeningDelimiter.active) {
+    delimiters.pop(
+    return plainText;
+  }
+
+  if (cursor.current.
+}
+
+export const processEmphasis = (
+  delimiters: Delimiter[], 
+  stackBottom: Delimiter | null = null
+): void => {
+
+}
+
+export class InlineParser {
+  static parse(text: string): InlineNode[] {
+    const cursor = new LineCursor(text.split('\n'));
+    const children: InlineNode[] = [];
+    // TODO: implement delimiter stack
+
+    while (!cursor.eof()) {
+      const span = startCodeSpan(cursor);
+      if (span) {
+        children.push(span);
+        continue;
+      }
+
+      const delim = DelimiterNode.start(cursor);
+      if (delim) {
+        children.push(delim.node);
+        delimiters.push(delim);
+        continue;
+      }
+
+      if (cursor.current.startsWith(']')) {
+        const node = lookForImageOrLink(cursor, delimiters);
+        children.push(node);
+        continue;
+      }
+    }
+
+    processEmphasis(delimiters);
+    return children;
   }
 }
