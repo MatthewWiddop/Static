@@ -15,6 +15,7 @@ export interface Cursor {
   indent(offset?: number): boolean;
   eof(offset?: number): boolean;
   slice(start: Point, end: Point): string;
+  findNext(token: string): Point | null;
 }
 
 export class LineCursor implements Cursor {
@@ -73,6 +74,23 @@ export class LineCursor implements Cursor {
 
     result += '\n' + this.peek(end.row).slice(0, end.col);
     return result;
+  }
+
+  public findNext(token: string): Point | null {
+    let rowOffset = -1, col: number;
+    const linesRemaining = this.lines.length - this.row;
+
+    do {
+      rowOffset++;
+      col = this.peek(rowOffset).indexOf(token);
+    } while (col === -1 && rowOffset < linesRemaining);
+
+    if (col === -1) return null;
+
+    return {
+      col,
+      row: this.row + rowOffset
+    };
   }
 
   public constructor(lines: string[]) {
