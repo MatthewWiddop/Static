@@ -20,6 +20,19 @@ export type Node<T> = T & {
 
   appendNode: (node: Node<T>) => void;
   preppendNode: (node: Node<T>) => void;
+  remove: () => void;
+}
+
+
+export type Stack<T> = {
+  bottom: T | null;
+  top: T | null;
+  length: number;
+
+  push: (node: T) => void;
+  pop: () => T | null;
+  remove: (node: T) => void;
+  findLast: (callback: (node: T) => boolean, bottom: T | null) => T | null;
 }
 
 const isLeftFlanking = (prevChar: string, nextChar: string): boolean => {
@@ -53,7 +66,7 @@ export class DelimiterNode implements Node<Delimiter> {
   public next: Node<Delimiter> | null = null;
   public prev: Node<Delimiter> | null = null;
 
-  static start(cursor: Cursor): Delimiter | null {
+  static start(cursor: Cursor): Node<Delimiter> | null {
     if (!cursor.current) return null;
 
     let matchedDelim = this.delimiters.find(delim => cursor.current.startsWith(delim));
@@ -105,6 +118,64 @@ export class DelimiterNode implements Node<Delimiter> {
 
     this.prev = node;
     node.next = this;
+  }
+
+  public remove(): void {
+    if (this.next) {
+      this.next.prev = this.prev;
+    }
+
+    if (this.prev) {
+      this.prev.next = this.next;
+    }
+  }
+}
+
+export class DelimiterStack implements Stack<Node<Delimiter>> {
+  public length: number = 0;
+  public top: Node<Delimiter> | null = null;
+  public bottom: Node<Delimiter> | null = null;
+
+  public pop(): Node<Delimiter> | null {
+    if (this.length <= 0) return null;
+
+    this.length--;
+    const last = this.top;
+    this.top = this.top!.prev;
+    return last;
+  }
+
+  public push(node: Node<Delimiter>): void {
+    this.length++;
+    if (!this.top) {
+      this.top = node;
+      this.bottom = node;
+      return;
+    }
+
+    this.top.appendNode(node);
+    this.top = node;
+  }
+
+  public findLast(
+    callback: (node: Node<Delimiter>) => boolean,
+    bottom: Node<Delimiter> | null = null
+  ): Node<Delimiter> | null {
+    let currentNode: Node<Delimiter> | null = this.top;
+    while (currentNode !== null && currentNode !== bottom) {
+      if (callback(currentNode)) return currentNode;
+
+      currentNode = currentNode.prev;
+    }
+
+    return null;
+  }
+
+  public remove(node: Node<Delimiter>): void {
+    if (!this.findLast((searchNode) => searchNode === node)) return;
+
+    node.remove();
+    this.length--;
   }
 }
 

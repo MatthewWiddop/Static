@@ -151,10 +151,14 @@ export type ThematicBreakNode = LeafNode & {
   type: 'ThematicBreak';
 }
 
-export type ImageNode = {
-  type: 'Image';
+export type LinkTarget = {
   destination: string;
-  alt?: string;
+  title: string;
+}
+
+export type ImageNode = LinkTarget & {
+  type: 'Image';
+  description: InlineNode[];
 }
 
 export type EmphasisNode = {
@@ -173,11 +177,9 @@ export type TextNode = {
   text: string;
 }
 
-export type LinkNode = {
+export type LinkNode = LinkTarget & {
   type: 'Link';
-  destination: string;
   text: InlineNode[];
-  title?: string;
 }
 
 export type HardBreak = {
