@@ -47,3 +47,4 @@ The markdown parser supports the following elements from the [CommonMark Spec](h
 - An ordered list cannot interrupt a paragraph unless it starts with "1.", but the current implementation is forgiving.
 - List items cannot be empty in this implementation
 - Currently no option for soft line breaks to be rendered as hard line breaks
+- According to the spec, the image description is parsed as inline text. For the interests of building a (mostly) compliant parser, I'll be sticking with this even though it will just be converted to an alt attribute later as plain text.
