@@ -14,7 +14,7 @@ export interface Cursor {
   continue(offset?: number): boolean;
   indent(offset?: number): boolean;
   eof(offset?: number): boolean;
-  slice(start: Point, end?: Point): string;
+  slice(start: Point, end?: Point): string[];
   findNext(token: string): Point | null;
 }
 
@@ -65,18 +65,15 @@ export class LineCursor implements Cursor {
     return false;
   }
 
-  public slice(start: Point, end?: Point): string {
+  public slice(start: Point, end?: Point): string[] {
     if (!end) {
-      return this.lines.slice(start.row).join('\n').slice(start.col);
-    }
-    const offset = start.row - this.pos.row;
-    let result = this.peek(offset).slice(start.col);
-    for (let currentRow = 1; currentRow < end.row; currentRow++) {
-      result += '\n' + this.peek(offset + currentRow);
+      return [this.lines[start.row].slice(start.col), 
+        ...this.lines.slice(start.row + 1)];
     }
 
-    result += '\n' + this.peek(end.row).slice(0, end.col);
-    return result;
+    return [this.lines[start.row].slice(start.col),
+      ...this.lines.slice(start.row + 1, end.row),
+      this.lines[end.row].slice(0, end.col)];
   }
 
   public findNext(token: string): Point | null {

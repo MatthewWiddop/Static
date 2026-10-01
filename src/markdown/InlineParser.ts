@@ -1,5 +1,5 @@
 import type { ImageNode, InlineCodeNode, InlineNode, LinkNode, LinkTarget, TextNode } from './ast.ts';
-import { countLeadingSpaces, countRepeatingChar, isEmptyLine, isPaddedString } from '../utils.ts';
+import { countRepeatingChar, isEmptyLine, isEscapable, isPaddedString } from '../utils.ts';
 import { LineCursor, Point, type Cursor } from './Cursor.ts';
 import { DelimiterNode, DelimiterStack } from './Delimiter.ts';
 
@@ -14,7 +14,7 @@ export const startCodeSpan = (cursor: Cursor): InlineCodeNode | null => {
   if (!end) return null;
 
   const start = cursor.pos;
-  const innerText = cursor.slice(start, end).replaceAll('\n', SPACE);
+  const innerText = cursor.slice(start, end).join(SPACE);
   if (innerText.length === 0) return null;
 
   const text = !isEmptyLine(innerText) && isPaddedString(innerText)
@@ -62,6 +62,7 @@ export const lookForImageOrLink = (
   }
   // snatch nodes after opening delim and make them children
   // of the current node
+  // call process emphasis on these node
   
   if (openDelim.type === '![') {
     return {
@@ -84,19 +85,19 @@ export const lookForImageOrLink = (
   };
 }
 
-export type ParsedLinkDestination = {
-  destination: string;
-  length: number;
+export type ParsedTargetDest = {
+  dest: string;
+  length: number; // todo: update to return end point instead
 }
 
-export const parseClosedTargetDestination = (text: string): ParsedLinkDestination | null => {
+export const parseClosedTargetDest = (text: string): ParsedTargetDest | null => {
   let dest = '';
   let escaped = false;
   for (let i = 1; i < text.length; i++) {
     const char = text[i];
     if (char === '>' && !escaped) {
       return {
-        destination: dest,
+        dest: dest,
         length: i + 1
       };
     }
@@ -115,17 +116,16 @@ export const parseClosedTargetDestination = (text: string): ParsedLinkDestinatio
   return null;
 }
 
-export const parseOpenTargetDestination = (text: string): ParsedLinkDestination | null => {
+export const parseOpenTargetDest = (text: string): ParsedTargetDest | null => {
   let dest = '';
   let escaped = false;
   let openingParenthesis = 0;
-  const escapableChars = ['\\', '(', ')'];
-  let i;
-  for (i = 0; i < text.length; i++) {
+  let i = 0;
+  for (; i < text.length; i++) {
     const char = text[i];
     if (escaped) {
       escaped = false;
-      if (!escapableChars.includes(char)) {
+      if (!isEscapable(char)) {
         dest += '\\';
       }
       dest += char;
@@ -137,7 +137,7 @@ export const parseOpenTargetDestination = (text: string): ParsedLinkDestination 
     else if (char === ')') {
       if (openingParenthesis === 0) {
         return {
-          destination: dest,
+          dest,
           length: i
         };
       }
@@ -160,38 +160,125 @@ export const parseOpenTargetDestination = (text: string): ParsedLinkDestination 
   }
 
   return {
-    destination: dest,
+    dest,
     length: i
   };
 }
 
-export const parseLinkTarget = (cursor: Cursor): LinkTarget | null => {
-  if (!cursor.current.startsWith('(')) {
-    return null;
+const parseTargetDest = (text: string): ParsedTargetDest | null => {
+  const emptyTarget: ParsedTargetDest = {
+    dest: '',
+    length: 0
+  };
+
+  if (text.startsWith(')')) return emptyTarget;
+
+  return text.startsWith('<')
+    ? parseClosedTargetDest(text)
+    : parseOpenTargetDest(text);
+}
+
+export type ParsedTargetTitle = {
+  title: string;
+  end: Point;
+}
+
+export const parseTargetTitle = (cursor: Cursor, start: Point): ParsedTargetTitle | null => {
+  let title = '';
+  let escaped = false;
+  
+  const titleOpenings: string[] = ['\'', '"', '('];
+  const titleLines = cursor.slice(start);
+  if (!titleLines) return null;
+
+  const openingChar = titleOpenings.find(char => titleLines[0].startsWith(char));
+  if (!openingChar) return null;
+
+  const closingChar = openingChar === '(' ? ')' : openingChar;
+  for (let row = 0; row < titleLines.length; row++) {
+    const line = titleLines[row];
+    for (let col = !row ? start.col : 0; col < line.length; col++) {
+      const char = line[col];
+      if (escaped) {
+        escaped = false;
+        if (!isEscapable(char)) {
+          title += '\\';
+        }
+        title += char;
+      }
+      else if (char === '\\') {
+        escaped = true;
+      }
+      else if (char === closingChar) {
+        return {
+          title,
+          end: {
+            row: start.row + row,
+            col: (!row ? start.col : 0) + col
+          }
+        };
+      }
+      else {
+        title += char;
+      }
+    }
   }
+
+  return null;
+}
+
+export const parseLinkTarget = (cursor: Cursor): LinkTarget | null => {
+  if (!cursor.current.startsWith('(')) return null;
+
+  const destLineOffset = isEmptyLine(cursor.current.slice(1)) ? 1 : 0;
+  const destLine = (destLineOffset 
+    ? cursor.peek(destLineOffset) 
+    : cursor.current.slice(1))
+    .trimStart();
+
+  if (isEmptyLine(destLine)) return null;
 
   const result: LinkTarget = {
     destination: '',
     title: ''
   };
 
-  let destCol = countLeadingSpaces(cursor.current.slice(1)) + 1;
-  if (cursor.current[destCol] === ')') {
-    return result;
-  }
-  
-  const target = cursor.current[destCol] === '<'
-    ? parseClosedTargetDestination(cursor.current.slice(destCol))
-    : parseOpenTargetDestination(cursor.current.slice(destCol));
+  const dest = parseTargetDest(destLine);  
+  if (!dest) return null;
 
-  if (!target) {
-    return null;
-  }
+  const titleLineOffset = destLineOffset + (isEmptyLine(destLine.slice(dest.length)) ? 1 : 0);
+  const titleLine = (titleLineOffset === 2
+    ? cursor.peek(titleLineOffset)
+    : destLine.slice(dest.length))
+    .trimStart();
 
-  // find indentation of title
-  // parse the title
+  const titleStart: Point = {
+    row: cursor.pos.row + titleLineOffset,
+    col: (destLineOffset ? cursor.pos.col : 0) + dest.length
+  };
+
+  const title = parseTargetTitle(cursor, titleStart);
+  if (!title) return null;
+
+  const rowOffset = title.end.row - cursor.pos.row;
+  const remainingLine = cursor.peek(rowOffset).slice(title.end.col);
+  const isRemainingEmpty = isEmptyLine(remainingLine);
+  const isClosed = (isRemainingEmpty
+    ? cursor.peek(rowOffset + 1)
+    : remainingLine)
+    .trimStart()
+    .startsWith(')');
+
+  if (!isClosed) return null;
+
+  cursor.continue(rowOffset + (isRemainingEmpty ? 1 : 0));
+  cursor.indent(!isRemainingEmpty ? title.end.col + 1 : 1);
+
+  return {
+    destination: dest.dest,
+    title: title.title
+  }
 }
-
 
 export const processEmphasis = (
   stack: DelimiterStack,

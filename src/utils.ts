@@ -63,3 +63,5 @@ export const isPaddedString = (str: string): boolean => {
 
 export const punctuation = '!"#$£%%&\'()*+,-./:;<=>?@[\\]^_`{|}~¬';
 
+export const isEscapable = (char: string) => punctuation.includes(char);
+
