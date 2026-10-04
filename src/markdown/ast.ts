@@ -161,6 +161,11 @@ export type ImageNode = LinkTarget & {
   description: InlineNode[];
 }
 
+export type LinkNode = LinkTarget & {
+  type: 'Link';
+  text: InlineNode[];
+}
+
 export type EmphasisNode = {
   type: 'Emphasis';
   strong: boolean;
@@ -175,11 +180,6 @@ export type InlineCodeNode = {
 export type TextNode = {
   type: 'Text';
   text: string;
-}
-
-export type LinkNode = LinkTarget & {
-  type: 'Link';
-  text: InlineNode[];
 }
 
 export type HardBreak = {

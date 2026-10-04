@@ -2,7 +2,15 @@ import type { Cursor } from './Cursor.ts';
 import type { TextNode } from './ast.ts';
 import { punctuation, countRepeatingChar } from '../utils.ts';
 
-export type DelimiterType = '*' | '_' | '[' | '![';
+export type EmphasisType = '*' | '_';
+export type DelimiterType = EmphasisType | '[' | '![';
+
+export const isEmphasisDelimiterNode = (
+  node: Node<Delimiter>
+): node is Node<Delimiter> & { type: EmphasisType} => {
+  return node.type === '_' || node.type === '*';
+}
+
 const SPACE = ' ';
 
 export type Delimiter = {
@@ -23,16 +31,16 @@ export type Node<T> = T & {
   remove: () => void;
 }
 
-
 export type Stack<T> = {
-  bottom: T | null;
-  top: T | null;
   length: number;
 
   push: (node: T) => void;
   pop: () => T | null;
+  peek: () => T | null;
   remove: (node: T) => void;
-  findLast: (callback: (node: T) => boolean, bottom: T | null) => T | null;
+  find: (callback: (node: Readonly<T>) => boolean, bottom: T | null, top: T | null) => T | null;
+  findLast: (callback: (node: Readonly<T>) => boolean, bottom: T | null, top: T | null) => T | null;
+  walkBackUntil: (callback: (node: T) => boolean) => T | null;
 }
 
 const isLeftFlanking = (prevChar: string, nextChar: string): boolean => {
@@ -86,7 +94,7 @@ export class DelimiterNode implements Node<Delimiter> {
     return new DelimiterNode(type, canOpen, canClose, length);
   }
 
-  public constructor(type: DelimiterType, canOpen: boolean, canClose: boolean, length: number) {
+  private constructor(type: DelimiterType, canOpen: boolean, canClose: boolean, length: number) {
     this.type = type;
     this.canOpen = canOpen;
     this.canClose = canClose;
@@ -133,8 +141,12 @@ export class DelimiterNode implements Node<Delimiter> {
 
 export class DelimiterStack implements Stack<Node<Delimiter>> {
   public length: number = 0;
-  public top: Node<Delimiter> | null = null;
-  public bottom: Node<Delimiter> | null = null;
+  private top: Node<Delimiter> | null = null;
+  private bottom: Node<Delimiter> | null = null;
+
+  public peek(): Node<Delimiter> | null {
+    return this.top;
+  }
 
   public pop(): Node<Delimiter> | null {
     if (this.length <= 0) return null;
@@ -142,6 +154,10 @@ export class DelimiterStack implements Stack<Node<Delimiter>> {
     this.length--;
     const last = this.top;
     this.top = this.top!.prev;
+    if (last === this.bottom) {
+      this.bottom === last;
+    }
+
     return last;
   }
 
@@ -157,12 +173,41 @@ export class DelimiterStack implements Stack<Node<Delimiter>> {
     this.top = node;
   }
 
+  public find(
+    callback: (node: Readonly<Node<Delimiter>>) => boolean, 
+    bottom: Node<Delimiter> | null = null,
+    top: Node<Delimiter> | null = null
+  ): Node<Delimiter> | null {
+    let currentNode: Node<Delimiter> | null = bottom?.next ?? this.bottom;
+    while (currentNode !== null && currentNode !== top) {
+      if (callback(currentNode)) return currentNode;
+
+      currentNode = currentNode.next;
+    }
+
+    return null;
+  }
+
   public findLast(
+    callback: (node: Readonly<Node<Delimiter>>) => boolean,
+    bottom: Node<Delimiter> | null = null,
+    top: Node<Delimiter> | null = null
+  ): Node<Delimiter> | null {
+    let currentNode: Node<Delimiter> | null = top ?? this.top;
+    while (currentNode !== null && currentNode !== bottom) {
+      if (callback(currentNode)) return currentNode;
+
+      currentNode = currentNode.prev;
+    }
+
+    return null;
+  }
+
+  public walkBackUntil(
     callback: (node: Node<Delimiter>) => boolean,
-    bottom: Node<Delimiter> | null = null
   ): Node<Delimiter> | null {
     let currentNode: Node<Delimiter> | null = this.top;
-    while (currentNode !== null && currentNode !== bottom) {
+    while (currentNode !== null) {
       if (callback(currentNode)) return currentNode;
 
       currentNode = currentNode.prev;
@@ -178,4 +223,24 @@ export class DelimiterStack implements Stack<Node<Delimiter>> {
     this.length--;
   }
 }
+
+export const initOpenersBottom = (
+  bottom: DelimiterNode | null = null
+) => {
+  const bottoms = Array.from({ length: 12 }, () => bottom);
+
+  const getIdx = (idx: DelimiterNode): number => {
+    return (idx.type === '*' ? 0 : 6) + 2 * (idx.length % 3) + (idx.canOpen ? 0 : 1);
+  }
+
+  return { 
+    get: (idx: DelimiterNode): DelimiterNode | null => {
+      return bottoms[getIdx(idx)]!;
+    },
+
+    set: (idx: DelimiterNode, value: DelimiterNode | null): void => {
+      bottoms[getIdx(idx)] = value;
+    }
+  };
+};
 

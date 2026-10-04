@@ -1,7 +1,7 @@
-import type { ImageNode, InlineCodeNode, InlineNode, LinkNode, LinkTarget, TextNode } from './ast.ts';
+import type { EmphasisNode, ImageNode, InlineCodeNode, InlineNode, LinkNode, LinkTarget, TextNode } from './ast.ts';
 import { countRepeatingChar, isEmptyLine, isEscapable, isPaddedString } from '../utils.ts';
 import { LineCursor, Point, type Cursor } from './Cursor.ts';
-import { DelimiterNode, DelimiterStack } from './Delimiter.ts';
+import { DelimiterNode, DelimiterStack, initOpenersBottom } from './Delimiter.ts';
 
 const SPACE = ' ';
 
@@ -32,10 +32,9 @@ export const startCodeSpan = (cursor: Cursor): InlineCodeNode | null => {
 
 export const lookForImageOrLink = (
   cursor: Cursor,
-  stack: DelimiterStack
+  stack: DelimiterStack,
+  nodes: InlineNode[]
 ): TextNode | LinkNode | ImageNode => {
-  cursor.indent(1); 
-  
   const plainText: TextNode = {
     type: 'Text',
     text: ']'
@@ -60,17 +59,21 @@ export const lookForImageOrLink = (
     stack.remove(openDelim);
     return plainText;
   }
-  // snatch nodes after opening delim and make them children
-  // of the current node
-  // call process emphasis on these node
+
+  const children = nodes.splice(nodes.indexOf(openDelim.text) + 1);
+  processEmphasis(children, stack, openDelim);
+  stack.remove(openDelim);
   
   if (openDelim.type === '![') {
     return {
-      type: 'Image', // todo: continue exit
+      type: 'Image',
+      description: children,
+      destination: target.destination,
+      title: target.title
     };
   }
 
-  stack.findLast((node) => {
+  stack.walkBackUntil((node) => {
     if (node.type === '[') {
       if (!node.active) return true;
 
@@ -82,6 +85,9 @@ export const lookForImageOrLink = (
 
   return {
     type: 'Link',
+    text: children,
+    destination: target.destination,
+    title: target.title
   };
 }
 
@@ -238,19 +244,10 @@ export const parseLinkTarget = (cursor: Cursor): LinkTarget | null => {
 
   if (isEmptyLine(destLine)) return null;
 
-  const result: LinkTarget = {
-    destination: '',
-    title: ''
-  };
-
   const dest = parseTargetDest(destLine);  
   if (!dest) return null;
 
   const titleLineOffset = destLineOffset + (isEmptyLine(destLine.slice(dest.length)) ? 1 : 0);
-  const titleLine = (titleLineOffset === 2
-    ? cursor.peek(titleLineOffset)
-    : destLine.slice(dest.length))
-    .trimStart();
 
   const titleStart: Point = {
     row: cursor.pos.row + titleLineOffset,
@@ -280,41 +277,170 @@ export const parseLinkTarget = (cursor: Cursor): LinkTarget | null => {
   }
 }
 
+export const getEmphasisNode = (
+  nodes: InlineNode[],
+  opener: DelimiterNode,
+  closer: DelimiterNode
+): EmphasisNode => {
+  const isStrong = Math.min(opener.length, closer.length) >= 2;
+  const openerIdx = nodes.indexOf(opener.text);
+  const closerIdx = nodes.indexOf(closer.text);
+  const emph: EmphasisNode = {
+    type: 'Emphasis',
+    strong: isStrong,
+    children: nodes.splice(openerIdx, closerIdx - openerIdx - 1)
+  };
+
+  return emph;
+}
+
 export const processEmphasis = (
+  nodes: InlineNode[],
   stack: DelimiterStack,
   bottom: DelimiterNode | null = null
 ): void => {
+  const openerBottoms = initOpenersBottom(bottom);
+  let current = stack.find(node => node.canOpen, bottom); 
+  while (current !== null) {
+    const currentNode = current;
+    const openerBottom = openerBottoms.get(current);
 
+    const opener = stack.findLast(
+      node => node.canOpen && node.type === currentNode.type, 
+      openerBottom,
+      currentNode
+    );
+
+    if (opener) {
+      const emph = getEmphasisNode(nodes, opener, currentNode);
+      nodes.splice(nodes.indexOf(current.text), 0, emph);
+      
+      while (opener.next !== currentNode && opener.next !== null) {
+        opener.next.remove();
+      }
+
+      opener.length -= emph.strong ? 2 : 1;
+      const openerIdx = nodes.indexOf(opener.text);
+      const closerIdx = nodes.indexOf(currentNode.text);
+
+      if (opener.length === 0) {
+        stack.remove(opener);
+        nodes.splice(openerIdx, 1);
+      }
+
+      if (current.length === 0) {
+        stack.remove(current);
+        nodes.splice(closerIdx, 1);
+        current = current.next;
+      }
+    }
+    else {
+      openerBottoms.set(currentNode, currentNode.prev);
+      if (!currentNode.canClose) {
+        stack.remove(currentNode);
+        current = current.next;
+      }
+    }
+
+    current = stack.find(node => node.canOpen, currentNode.prev);
+  }
+
+  while (stack.peek() !== bottom) {
+    stack.pop();
+  }
+}
+
+export const startHardLineBreak = (cursor: Cursor): boolean => {
+  if (isEmptyLine(cursor.peek(1))) return false;
+
+  if (!cursor.current.startsWith('  ') && !cursor.current.startsWith('\\')) {
+    return false;
+  }
+
+  cursor.indent();
+  return true;
+}
+
+export const appendText = (text: string, nodes: InlineNode[]): void => {
+  const last = nodes.at(-1);
+  if (last?.type !== 'Text' || !canContinueTextNode(last)) {
+    nodes.push({
+      type: 'Text',
+      text: text
+    });
+  }
+  else {
+    last.text += text;
+  }
+}
+
+export const canContinueTextNode = (node: TextNode) => {
+  return !DelimiterNode.delimiters.includes(node.type);
 }
 
 export class InlineParser {
   static parse(text: string): InlineNode[] {
     const cursor = new LineCursor(text.split('\n'));
     const stack = new DelimiterStack();
-    const children: InlineNode[] = [];
+    const nodes: InlineNode[] = [];
+    let escaped = false;
 
     while (!cursor.eof()) {
+      if (escaped) {
+        escaped = false;
+        const char = cursor.current[0];
+        const text = isEscapable(char) ? char : `\\${char}`;
+        if (startHardLineBreak(cursor)) {
+          nodes.push({
+            type: 'HardBreak'
+          });
+        }
+        else {
+          appendText(text, nodes);
+          cursor.indent(1);
+        }
+        continue;
+      }
+
+      if (cursor.current.startsWith('\\')) {
+        escaped = true;
+        cursor.indent(1);
+        continue;
+      }
+
       const span = startCodeSpan(cursor);
       if (span) {
-        children.push(span);
+        nodes.push(span);
         continue;
       }
 
       const delim = DelimiterNode.start(cursor);
       if (delim) {
         stack.push(delim);
-        children.push(delim.text);
+        nodes.push(delim.text);
         continue;
       }
 
       if (cursor.current.startsWith(']')) {
-        const node = lookForImageOrLink(cursor, stack);
-        children.push(node);
+        cursor.indent(1);
+        const node = lookForImageOrLink(cursor, stack, nodes);
+        nodes.push(node);
         continue;
       }
+
+      if (startHardLineBreak(cursor)) {
+        nodes.push({
+          type: 'HardBreak'
+        });
+        continue;
+      }
+
+      appendText(cursor.current[0], nodes);
+      cursor.indent(1);
     }
 
-    processEmphasis(stack);
-    return children;
+    processEmphasis(nodes, stack);
+    return nodes;
   }
 }
+

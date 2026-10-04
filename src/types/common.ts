@@ -13,7 +13,7 @@ export const createFullOptions = <T>(options: Partial<T>, defaults: T): T => {
   return { ...defaults,...options };
 }
 
-type Post = {
+export type Post = {
   fileName: ValidFile,
   title: string,
   date: Date,
