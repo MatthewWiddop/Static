@@ -39,8 +39,6 @@ export class ListParser implements BlockParser<ListNode> {
 
   public eat(cursor: Cursor, { block, ctx }: BlockCtx<ListNode>): void {
     cursor.col = ctx.indent;
-    console.log('inside list');
-    console.log(cursor.current);
     const childCtx = itemParser.start(cursor)!;
     block.children.push(childCtx.block);
     Parser.open.push(childCtx);

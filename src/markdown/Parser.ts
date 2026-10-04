@@ -53,17 +53,13 @@ export class Parser {
     }
 
     while (!cursor.eof()) {
-      console.log(cursor.current);
       const canConsume = this.open.map((blockCtx) => getParser(blockCtx.block.type).continue(cursor, blockCtx));
-      console.log(cursor.current);
-      console.log(canConsume);
 
       last = this.open.at(-1)!;
       const newBlockCtx = this.createBlock(cursor);
       this.open.splice(this.open.indexOf(last) + 1);
       if (newBlockCtx && !isContinuation(newBlockCtx.block.type, last.block.type)) {
         const parent = this.findLastOpenContainerBlock(canConsume);
-        console.log(`parent: ${parent.block.type}`);
         this.closeSatiatedBlocks(canConsume, { container: true });
 
         parser = getParser(parent.block.type) 
@@ -75,8 +71,6 @@ export class Parser {
 
       last = this.open.at(-1)!;
       getParser(last.block.type).eat(cursor, last);
-      console.log(this.open.map(blockCtx => blockCtx.block.type));
-      console.log('---');
 
       cursor.continue();
     }
