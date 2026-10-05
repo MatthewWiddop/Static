@@ -1,6 +1,6 @@
-import type { Cursor } from '../Cursor.ts';
-import { Parser, type BlockParser } from '../Parser.ts';
-import type { DocumentNode, BlockCtx } from '../ast.ts'
+import type { Cursor } from '../Cursor';
+import { Parser, type BlockParser } from '../Parser';
+import type { DocumentNode, BlockCtx } from '../ast'
 
 export class DocumentParser implements BlockParser<DocumentNode> {
   public start(cursor: Cursor): BlockCtx<DocumentNode> | null {

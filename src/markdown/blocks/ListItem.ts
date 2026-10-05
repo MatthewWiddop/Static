@@ -1,8 +1,8 @@
-import type { Cursor } from '../Cursor.ts';
-import { type BlockParser, Parser } from '../Parser.ts';
-import type { ListItemNode, BlockCtx, ContainerCtx } from '../ast.ts';
-import { Marker } from '../Marker.ts';
-import { isEmptyLine } from '../../utils.ts';
+import type { Cursor } from '../Cursor';
+import { type BlockParser, Parser } from '../Parser';
+import type { ListItemNode, BlockCtx, ContainerCtx } from '../ast';
+import { Marker } from '../Marker';
+import { isEmptyLine } from '../../utils';
 
 export class ListItemParser implements BlockParser<ListItemNode> {
   start(cursor: Cursor): BlockCtx<ListItemNode> | null {

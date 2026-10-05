@@ -1,7 +1,7 @@
-import { type BlockParser } from '../Parser.ts';
-import type { ParagraphNode, BlockCtx } from '../ast.ts';
-import { isEmptyLine } from '../../utils.ts';
-import type { Cursor } from '../Cursor.ts';
+import { type BlockParser } from '../Parser';
+import type { ParagraphNode, BlockCtx } from '../ast';
+import { isEmptyLine } from '../../utils';
+import type { Cursor } from '../Cursor';
 
 export class ParagraphParser implements BlockParser<ParagraphNode> {
   public start(cursor: Cursor): BlockCtx<ParagraphNode> | null {

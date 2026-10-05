@@ -1,6 +1,6 @@
-import type { HeadingNode, BlockCtx } from '../ast.ts';
-import type { Cursor } from '../Cursor.ts';
-import type { BlockParser } from '../Parser.ts';
+import type { HeadingNode, BlockCtx } from '../ast';
+import type { Cursor } from '../Cursor';
+import type { BlockParser } from '../Parser';
 
 const HEADING_REGEX = /^ {0,3}(#{1,6})(?:\s+(.*?)(?:\s+(?<!\\)#+)?\s*)$/;
 

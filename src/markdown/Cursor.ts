@@ -14,6 +14,7 @@ export interface Cursor {
   continue(offset?: number): boolean;
   indent(offset?: number): boolean;
   eof(offset?: number): boolean;
+  eol(offset?: number): boolean;
   slice(start: Point, end?: Point): string[];
   findNext(token: string): Point | null;
 }
@@ -25,7 +26,7 @@ export class LineCursor implements Cursor {
 
   public peek(offset: number = 0): string {
     const target = this.row + offset;
-    if (target > this.lines.length || target < 0) {
+    if (target >= this.lines.length || target < 0) {
       return '';
     }
     return this.lines[target];
@@ -50,6 +51,10 @@ export class LineCursor implements Cursor {
     return this.row + offset >= this.lines.length;
   }
 
+  public eol(offset: number = 0): boolean {
+    return this.eof() || this.lines[this.row].length <= this.col + offset;
+  }
+
   public continue(offset: number = 1): boolean {
     this.row += offset
     this.col = 0;
@@ -57,23 +62,27 @@ export class LineCursor implements Cursor {
   }
 
   public indent(offset?: number): boolean {
-    if (offset) {
+    if (offset || offset === 0) {
       this.col += offset;
       return this.peek() !== null && this.col < this.peek()!.length;
     }
-    this.col = this.peek()?.length ?? 0;
+    this.col = this.peek().length;
     return false;
   }
 
   public slice(start: Point, end?: Point): string[] {
     if (!end) {
-      return [this.lines[start.row].slice(start.col), 
-        ...this.lines.slice(start.row + 1)];
+      return [
+        this.lines[start.row].slice(start.col), 
+        ...this.lines.slice(start.row + 1)
+      ];
     }
 
-    return [this.lines[start.row].slice(start.col),
+    return [
+      this.lines[start.row].slice(start.col),
       ...this.lines.slice(start.row + 1, end.row),
-      this.lines[end.row].slice(0, end.col)];
+      this.lines[end.row].slice(0, end.col)
+    ];
   }
 
   public findNext(token: string): Point | null {

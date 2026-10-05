@@ -1,7 +1,7 @@
-import type { EmphasisNode, ImageNode, InlineCodeNode, InlineNode, LinkNode, LinkTarget, TextNode } from './ast.ts';
-import { countRepeatingChar, isEmptyLine, isEscapable, isPaddedString } from '../utils.ts';
-import { LineCursor, Point, type Cursor } from './Cursor.ts';
-import { DelimiterNode, DelimiterStack, initOpenersBottom } from './Delimiter.ts';
+import type { EmphasisNode, ImageNode, InlineCodeNode, InlineNode, LinkNode, LinkTarget, TextNode } from './ast';
+import { countRepeatingChar, isEmptyLine, isEscapable, isPaddedString } from '../utils';
+import { LineCursor, type Point, type Cursor } from './Cursor';
+import { DelimiterNode, DelimiterStack, initOpenersBottom } from './Delimiter';
 
 const SPACE = ' ';
 
@@ -285,10 +285,12 @@ export const getEmphasisNode = (
   const isStrong = Math.min(opener.length, closer.length) >= 2;
   const openerIdx = nodes.indexOf(opener.text);
   const closerIdx = nodes.indexOf(closer.text);
+  console.log(nodes);
+  console.log(openerIdx, closerIdx);
   const emph: EmphasisNode = {
     type: 'Emphasis',
     strong: isStrong,
-    children: nodes.splice(openerIdx, closerIdx - openerIdx - 1)
+    children: nodes.splice(openerIdx + 1, closerIdx - openerIdx - 1)
   };
 
   return emph;
@@ -300,9 +302,11 @@ export const processEmphasis = (
   bottom: DelimiterNode | null = null
 ): void => {
   const openerBottoms = initOpenersBottom(bottom);
-  let current = stack.find(node => node.canOpen, bottom); 
+  let current = stack.find(node => node.canClose, bottom); 
   while (current !== null) {
+    console.log('---');
     const currentNode = current;
+    console.log(currentNode);
     const openerBottom = openerBottoms.get(current);
 
     const opener = stack.findLast(
@@ -310,39 +314,46 @@ export const processEmphasis = (
       openerBottom,
       currentNode
     );
+    console.log('opener is');
+    console.log(opener);
 
     if (opener) {
       const emph = getEmphasisNode(nodes, opener, currentNode);
+      console.log(emph);
       nodes.splice(nodes.indexOf(current.text), 0, emph);
       
       while (opener.next !== currentNode && opener.next !== null) {
-        opener.next.remove();
+        stack.remove(opener.next);
       }
 
-      opener.length -= emph.strong ? 2 : 1;
-      const openerIdx = nodes.indexOf(opener.text);
-      const closerIdx = nodes.indexOf(currentNode.text);
+      const emphLength = emph.strong ? 2 : 1;
+      opener.length -= emphLength;
+      current.length -= emphLength;
 
       if (opener.length === 0) {
+        const openerIdx = nodes.indexOf(opener.text);
         stack.remove(opener);
         nodes.splice(openerIdx, 1);
       }
 
       if (current.length === 0) {
+        const closerIdx = nodes.indexOf(currentNode.text);
         stack.remove(current);
         nodes.splice(closerIdx, 1);
         current = current.next;
       }
+      return;
     }
     else {
       openerBottoms.set(currentNode, currentNode.prev);
-      if (!currentNode.canClose) {
+      if (!currentNode.canOpen) {
         stack.remove(currentNode);
         current = current.next;
       }
+      current = currentNode.next; // todo: check if (and why) this line is necessary
     }
 
-    current = stack.find(node => node.canOpen, currentNode.prev);
+    current = stack.find(node => node.canClose, current?.prev);
   }
 
   while (stack.peek() !== bottom) {
@@ -357,7 +368,7 @@ export const startHardLineBreak = (cursor: Cursor): boolean => {
     return false;
   }
 
-  cursor.indent();
+  cursor.continue();
   return true;
 }
 
@@ -375,7 +386,7 @@ export const appendText = (text: string, nodes: InlineNode[]): void => {
 }
 
 export const canContinueTextNode = (node: TextNode) => {
-  return !DelimiterNode.delimiters.includes(node.type);
+  return !DelimiterNode.delimiters.includes(node.text);
 }
 
 export class InlineParser {
@@ -384,8 +395,14 @@ export class InlineParser {
     const stack = new DelimiterStack();
     const nodes: InlineNode[] = [];
     let escaped = false;
+    console.log(`text: ${text}`);
 
     while (!cursor.eof()) {
+      if (cursor.eol()) {
+        cursor.continue();
+        continue;
+      }
+
       if (escaped) {
         escaped = false;
         const char = cursor.current[0];
@@ -416,8 +433,8 @@ export class InlineParser {
 
       const delim = DelimiterNode.start(cursor);
       if (delim) {
-        stack.push(delim);
         nodes.push(delim.text);
+        stack.push(delim);
         continue;
       }
 
@@ -440,6 +457,7 @@ export class InlineParser {
     }
 
     processEmphasis(nodes, stack);
+    console.log(nodes);
     return nodes;
   }
 }

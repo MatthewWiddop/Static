@@ -1,6 +1,6 @@
-import type { BlockParser } from '../Parser.ts';
-import type { BlockCtx, ThematicBreakNode } from '../ast.ts';
-import type { Cursor } from '../Cursor.ts';
+import type { BlockParser } from '../Parser';
+import type { BlockCtx, ThematicBreakNode } from '../ast';
+import type { Cursor } from '../Cursor';
 
 const BREAK_REGEX = /^ {0,3}(?:(?:\*\s*){3,}|(?:\-\s*){3,}|(?:_\s*){3,})\s*$/;
 

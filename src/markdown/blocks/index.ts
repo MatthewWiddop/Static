@@ -1,9 +1,9 @@
-export { DocumentParser } from './Document.ts';
-export { BlockQuoteParser } from './BlockQuote.ts';
-export { CodeBlockParser } from './CodeBlock.ts';
-export { HeadingParser } from './Heading.ts';
-export { ListParser } from './List.ts';
-export { ListItemParser } from './ListItem.ts';
-export { ParagraphParser } from './Paragraph.ts';
-export { ThematicBreakParser } from './ThematicBreak.ts';
+export { DocumentParser } from './Document';
+export { BlockQuoteParser } from './BlockQuote';
+export { CodeBlockParser } from './CodeBlock';
+export { HeadingParser } from './Heading';
+export { ListParser } from './List';
+export { ListItemParser } from './ListItem';
+export { ParagraphParser } from './Paragraph';
+export { ThematicBreakParser } from './ThematicBreak';
 

@@ -1,8 +1,8 @@
-import type { FenceType, CodeBlockNode, BlockCtx, FencedCodeBlockCtx } from '../ast.ts';
-import { isFencedCodeBlockNode } from '../ast.ts';
-import type { BlockParser } from '../Parser.ts'
-import type { Cursor } from '../Cursor.ts';
-import { isEmptyLine, trimIndentation } from '../../utils.ts';
+import type { FenceType, CodeBlockNode, BlockCtx, FencedCodeBlockCtx } from '../ast';
+import { isFencedCodeBlockNode } from '../ast';
+import type { BlockParser } from '../Parser'
+import type { Cursor } from '../Cursor';
+import { isEmptyLine, trimIndentation } from '../../utils';
 
 const FENCE_START = /^( {0,3})(`{3,}|~{3,})\s*([^\s`]*)\s*$/;
 const FENCE_END = /^ {0,3}(`+|~+)\s*/;

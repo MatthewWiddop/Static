@@ -1,9 +1,9 @@
-import { Marker } from '../Marker.ts';
-import type { Cursor } from '../Cursor.ts';
-import type { BlockParser } from '../Parser.ts';
-import type { ListItemNode, ListNode, BlockCtx } from '../ast.ts';
-import { ListItemParser } from './ListItem.ts';
-import { Parser } from '../Parser.ts';
+import { Marker } from '../Marker';
+import type { Cursor } from '../Cursor';
+import type { BlockParser } from '../Parser';
+import type { ListNode, BlockCtx } from '../ast';
+import { ListItemParser } from './ListItem';
+import { Parser } from '../Parser';
 
 const itemParser = new ListItemParser();
   

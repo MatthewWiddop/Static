@@ -1,4 +1,4 @@
-import type { ParsedListMarker } from './Marker.ts';
+import type { ParsedListMarker } from './Marker';
 
 export type BlockNode =
   | ContainerNode

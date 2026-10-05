@@ -1,7 +1,7 @@
-import { Parser, type BlockParser } from '../Parser.ts';
+import { Parser, type BlockParser } from '../Parser';
 import type { Cursor } from '../Cursor';
-import { countLeadingSpaces } from '../../utils.ts';
-import type { BlockCtx, BlockQuoteNode } from '../ast.ts';
+import { countLeadingSpaces } from '../../utils';
+import type { BlockCtx, BlockQuoteNode } from '../ast';
 
 const QUOTE_REGEX = /^ {0,3}>/;
 const QUOTE_MARKER = '>';

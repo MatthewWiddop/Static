@@ -1,5 +1,5 @@
-import { calcBlockIndent, countLeadingSpaces } from '../utils.ts';
-import type { ListMarker } from './ast.ts';
+import { calcBlockIndent, countLeadingSpaces } from '../utils';
+import type { ListMarker } from './ast';
 
 const UNORDERED_MARKERS = [ '-', '+', '*' ];
 const MARKER_REGEX = /^( {0,3})([-+*]|\d{1,9}[.)])(.*)$/;

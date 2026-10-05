@@ -1,10 +1,10 @@
-import type { BlockCtx, BlockNode, BlockNodeType, ContainerNode, DocumentNode } from './ast.ts';
-import { isContainerNode, isHeadingOrParagraphCtx } from './ast.ts';
-import { LineCursor, type Cursor } from './Cursor.ts';
-import { DocumentParser, BlockQuoteParser, CodeBlockParser, HeadingParser, ListParser, ListItemParser, ParagraphParser, ThematicBreakParser } from './blocks/index.ts'
-import { isEmptyLine, reverseRange } from '../utils.ts';
-import { createFullOptions } from '../types/common.ts';
-import { InlineParser } from './InlineParser.ts';
+import type { BlockCtx, BlockNode, BlockNodeType, ContainerNode, DocumentNode } from './ast';
+import { isContainerNode, isHeadingOrParagraphCtx } from './ast';
+import { LineCursor, type Cursor } from './Cursor';
+import { DocumentParser, BlockQuoteParser, CodeBlockParser, HeadingParser, ListParser, ListItemParser, ParagraphParser, ThematicBreakParser } from './blocks/index'
+import { isEmptyLine, reverseRange } from '../utils';
+import { createFullOptions } from '../types/common';
+import { InlineParser } from './InlineParser';
 
 export interface BlockParser<T extends BlockNode = BlockNode> {
   start(cursor: Cursor): BlockCtx<T> | null;
@@ -75,6 +75,8 @@ export class Parser {
       cursor.continue();
     }
 
+    this.closeRemainingBlocks();
+
     this.open = [];
     return root.block;
   }
@@ -104,6 +106,10 @@ export class Parser {
         satiatedBlock.children.push(...InlineParser.parse(ctx.text));
       }
     }
+  }
+
+  static closeRemainingBlocks(): void {
+    this.closeSatiatedBlocks(Array.from({ length: this.open.length }, () => false));
   }
 
   static findLastOpenContainerBlock(

@@ -1,6 +1,6 @@
-import type { Cursor } from './Cursor.ts';
-import type { TextNode } from './ast.ts';
-import { punctuation, countRepeatingChar } from '../utils.ts';
+import type { Cursor } from './Cursor';
+import type { TextNode } from './ast';
+import { punctuation, countRepeatingChar } from '../utils';
 
 export type EmphasisType = '*' | '_';
 export type DelimiterType = EmphasisType | '[' | '![';
@@ -43,25 +43,15 @@ export type Stack<T> = {
   walkBackUntil: (callback: (node: T) => boolean) => T | null;
 }
 
-const isLeftFlanking = (prevChar: string, nextChar: string): boolean => {
-  return (!punctuation.includes(nextChar) || `${punctuation} `.includes(prevChar)) &&
-    nextChar !== SPACE;
+export type DelimiterRun = {
+  type: DelimiterType,
+  canOpen: boolean;
+  canClose: boolean;
+  leftFlanking: boolean;
+  rightFlanking: boolean;
+  length: number;
 }
 
-const isRightFlanking = (prevChar: string, nextChar: string): boolean => {
-  return (!punctuation.includes(prevChar) || `${punctuation} `.includes(nextChar)) &&
-    prevChar !== SPACE;
-}
-
-const getCanOpen = (delim: DelimiterType, prevChar: string, nextChar: string): boolean => {
-  return ['![', '[', '*'].includes(delim) || isLeftFlanking(prevChar, nextChar) && 
-    (!isRightFlanking(prevChar, nextChar) || punctuation.includes(prevChar));
-}
-
-const getCanClose = (delim: DelimiterType, prevChar: string, nextChar: string): boolean => {
-  return delim === '*' || delim === '_' && isRightFlanking(prevChar, nextChar) &&
-    (!isLeftFlanking(prevChar, nextChar) || punctuation.includes(nextChar));
-}
 
 export class DelimiterNode implements Node<Delimiter> {
   static readonly delimiters = ['*', '_', '[', '!['];
@@ -77,21 +67,56 @@ export class DelimiterNode implements Node<Delimiter> {
   static start(cursor: Cursor): Node<Delimiter> | null {
     if (!cursor.current) return null;
 
-    let matchedDelim = this.delimiters.find(delim => cursor.current.startsWith(delim));
-    if (!matchedDelim) return null;
+    const run = this.classifyDelimiterRun(cursor);
+    if (!run) return null;
 
-    const type = matchedDelim as DelimiterType;
-    const prevChar = cursor.peek()[cursor.col - 1] ?? ' ';
-    const nextChar = cursor.current[0] ?? ' ';
-    const canOpen = getCanOpen(type, prevChar, nextChar);
-    const canClose = getCanClose(type, prevChar, nextChar);
-    const length = '_*'.includes(type)
-      ? countRepeatingChar(cursor.current)
-      : type.length;
-
+    const { type, canOpen, canClose, length } = run;
     cursor.indent(length);
 
     return new DelimiterNode(type, canOpen, canClose, length);
+  }
+
+  static classifyDelimiterRun(cursor: Cursor): DelimiterRun | null {
+    const matchedDelim = this.delimiters.find(delim => cursor.current.startsWith(delim));
+    if (!matchedDelim) return null;
+
+    const type = matchedDelim as DelimiterType;
+    const length = '_*'.includes(type)
+      ? countRepeatingChar(cursor.current)
+      : type.length;
+    const prevChar = cursor.peek()[cursor.col - 1] ?? SPACE;
+    const nextChar = cursor.current[length] ?? SPACE;
+    const canOpen = this.getCanOpen(type, prevChar, nextChar);
+    const canClose = this.getCanClose(type, prevChar, nextChar);
+
+    return {
+      type,
+      canOpen,
+      canClose,
+      leftFlanking: this.isLeftFlanking(prevChar, nextChar),
+      rightFlanking: this.isRightFlanking(prevChar, nextChar),
+      length
+    };
+  }
+
+  static isLeftFlanking(prevChar: string, nextChar: string): boolean {
+    return (!punctuation.includes(nextChar) || `${punctuation} `.includes(prevChar)) &&
+      nextChar !== SPACE;
+  }
+
+  static isRightFlanking(prevChar: string, nextChar: string): boolean {
+    return (!punctuation.includes(prevChar) || `${punctuation} `.includes(nextChar)) &&
+      prevChar !== SPACE;
+  }
+
+  static getCanOpen(delim: DelimiterType, prevChar: string, nextChar: string): boolean {
+    return ['![', '[', '*'].includes(delim) || this.isLeftFlanking(prevChar, nextChar) && 
+      (!this.isRightFlanking(prevChar, nextChar) || punctuation.includes(prevChar));
+  }
+
+  static getCanClose(delim: DelimiterType, prevChar: string, nextChar: string): boolean {
+    return delim === '*' || delim === '_' && this.isRightFlanking(prevChar, nextChar) &&
+      (!this.isLeftFlanking(prevChar, nextChar) || punctuation.includes(nextChar));
   }
 
   private constructor(type: DelimiterType, canOpen: boolean, canClose: boolean, length: number) {
@@ -155,7 +180,7 @@ export class DelimiterStack implements Stack<Node<Delimiter>> {
     const last = this.top;
     this.top = this.top!.prev;
     if (last === this.bottom) {
-      this.bottom === last;
+      this.bottom = last;
     }
 
     return last;
@@ -193,7 +218,9 @@ export class DelimiterStack implements Stack<Node<Delimiter>> {
     bottom: Node<Delimiter> | null = null,
     top: Node<Delimiter> | null = null
   ): Node<Delimiter> | null {
-    let currentNode: Node<Delimiter> | null = top ?? this.top;
+    if (top && top.prev === null) return null;
+
+    let currentNode: Node<Delimiter> | null = top?.prev ?? this.top;
     while (currentNode !== null && currentNode !== bottom) {
       if (callback(currentNode)) return currentNode;
 
