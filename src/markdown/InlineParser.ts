@@ -35,7 +35,7 @@ export const findLastOpenDelimiter = (stack: DelimiterStack): DelimiterNode | nu
   return stack.findLast(delim => !isEmphasisDelimiterNode(delim));
 }
 
-export const deactivateLinkOrImageDelimiters = (stack: DelimiterStack): void =>
+export const deactivateLinkOrImageDelimiters = (stack: DelimiterStack): void => {
   stack.walkBackUntil((node) => {
     if (node.type === '[') {
       if (!node.active) return true;
