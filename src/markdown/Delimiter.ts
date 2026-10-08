@@ -1,5 +1,5 @@
 import type { Cursor } from './Cursor';
-import type { TextNode } from './ast';
+import type { InlineNode, TextNode } from './ast';
 import { punctuation, countRepeatingChar } from '../utils';
 
 export type EmphasisType = '*' | '_';
@@ -7,7 +7,7 @@ export type DelimiterType = EmphasisType | '[' | '![';
 
 export const isEmphasisDelimiterNode = (
   node: Node<Delimiter>
-): node is Node<Delimiter> & { type: EmphasisType} => {
+): node is Node<Delimiter> & { type: EmphasisType } => {
   return node.type === '_' || node.type === '*';
 }
 
@@ -52,6 +52,24 @@ export type DelimiterRun = {
   length: number;
 }
 
+export const consumeDelimiter = (
+  cursor: Cursor, 
+  nodes: InlineNode[], 
+  stack: DelimiterStack
+): boolean => {
+  if (!cursor.current) return false;
+
+  const run = DelimiterNode.classifyDelimiterRun(cursor);
+  if (!run) return false;
+
+  const { type, canOpen, canClose, length } = run;
+  cursor.indent(length);
+
+  const node = new DelimiterNode(type, canOpen, canClose, length);
+  stack.push(node);
+  nodes.push(node.text); 
+  return true;
+}
 
 export class DelimiterNode implements Node<Delimiter> {
   static readonly delimiters = ['*', '_', '[', '!['];
@@ -63,18 +81,6 @@ export class DelimiterNode implements Node<Delimiter> {
   public length: number;
   public next: Node<Delimiter> | null = null;
   public prev: Node<Delimiter> | null = null;
-
-  static start(cursor: Cursor): Node<Delimiter> | null {
-    if (!cursor.current) return null;
-
-    const run = this.classifyDelimiterRun(cursor);
-    if (!run) return null;
-
-    const { type, canOpen, canClose, length } = run;
-    cursor.indent(length);
-
-    return new DelimiterNode(type, canOpen, canClose, length);
-  }
 
   static classifyDelimiterRun(cursor: Cursor): DelimiterRun | null {
     const matchedDelim = this.delimiters.find(delim => cursor.current.startsWith(delim));
@@ -119,7 +125,7 @@ export class DelimiterNode implements Node<Delimiter> {
       (!this.isLeftFlanking(prevChar, nextChar) || punctuation.includes(nextChar));
   }
 
-  private constructor(type: DelimiterType, canOpen: boolean, canClose: boolean, length: number) {
+  public constructor(type: DelimiterType, canOpen: boolean, canClose: boolean, length: number) {
     this.type = type;
     this.canOpen = canOpen;
     this.canClose = canClose;

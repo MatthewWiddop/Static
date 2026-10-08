@@ -1,21 +1,21 @@
 import type { EmphasisNode, ImageNode, InlineCodeNode, InlineNode, LinkNode, LinkTarget, TextNode } from './ast';
 import { countRepeatingChar, isEmptyLine, isEscapable, isPaddedString } from '../utils';
 import { LineCursor, type Point, type Cursor } from './Cursor';
-import { DelimiterNode, DelimiterStack, initOpenersBottom } from './Delimiter';
+import { DelimiterNode, DelimiterStack, initOpenersBottom, consumeDelimiter, isEmphasisDelimiterNode } from './Delimiter';
 
 const SPACE = ' ';
 
-export const startCodeSpan = (cursor: Cursor): InlineCodeNode | null => {
-  if (!cursor.current.startsWith('`')) return null;
+export const consumeCodeSpan = (cursor: Cursor, nodes: InlineNode[]): boolean => {
+  if (!cursor.current.startsWith('`')) return false;
 
   const length = countRepeatingChar(cursor.current);
   const end = cursor.findNext('`'.repeat(length));
 
-  if (!end) return null;
+  if (!end) return false;
 
   const start = cursor.pos;
   const innerText = cursor.slice(start, end).join(SPACE);
-  if (innerText.length === 0) return null;
+  if (innerText.length === 0) return false;
 
   const text = !isEmptyLine(innerText) && isPaddedString(innerText)
     ? innerText.slice(1, -1)
@@ -24,55 +24,18 @@ export const startCodeSpan = (cursor: Cursor): InlineCodeNode | null => {
   cursor.continue(end.row - start.row);
   cursor.indent(end.col + 1);
 
-  return {
+  nodes.push({
     type: 'InlineCode',
     text
-  }
+  });
+  return true;
 }
 
-export const lookForImageOrLink = (
-  cursor: Cursor,
-  stack: DelimiterStack,
-  nodes: InlineNode[]
-): TextNode | LinkNode | ImageNode => {
-  const plainText: TextNode = {
-    type: 'Text',
-    text: ']'
-  }
+export const findLastOpenDelimiter = (stack: DelimiterStack): DelimiterNode | null => {
+  return stack.findLast(delim => !isEmphasisDelimiterNode(delim));
+}
 
-  const openDelim = stack.findLast(delim => {
-    return delim.type === '[' || delim.type == '![';
-  });
-
-  if (!openDelim) {
-    return plainText;
-  }
-
-  // todo: clean up this function
-  if (!openDelim.active) {
-    stack.remove(openDelim);
-    return plainText;
-  }
-
-  const target = parseLinkTarget(cursor);
-  if (!target) {
-    stack.remove(openDelim);
-    return plainText;
-  }
-
-  const children = nodes.splice(nodes.indexOf(openDelim.text) + 1);
-  processEmphasis(children, stack, openDelim);
-  stack.remove(openDelim);
-  
-  if (openDelim.type === '![') {
-    return {
-      type: 'Image',
-      description: children,
-      destination: target.destination,
-      title: target.title
-    };
-  }
-
+export const deactivateLinkOrImageDelimiters = (stack: DelimiterStack): void =>
   stack.walkBackUntil((node) => {
     if (node.type === '[') {
       if (!node.active) return true;
@@ -82,18 +45,66 @@ export const lookForImageOrLink = (
 
     return false;
   });
+}
 
-  return {
-    type: 'Link',
-    text: children,
-    destination: target.destination,
-    title: target.title
-  };
+export const consumeLinkOrImage = (
+  cursor: Cursor,
+  nodes: InlineNode[],
+  stack: DelimiterStack,
+): boolean => {
+  if (!cursor.current.startsWith(']')) return false;
+  const plainText: TextNode = {
+    type: 'Text',
+    text: ']'
+  }
+
+  const openDelim = findLastOpenDelimiter(stack);
+  if (!openDelim) {
+    nodes.push(plainText);
+    return true;
+  }
+
+  if (!openDelim.active) {
+    nodes.push(plainText);
+    stack.remove(openDelim);
+    return true;
+  }
+
+  const target = parseLinkTarget(cursor);
+  if (!target) {
+    nodes.push(plainText);
+    stack.remove(openDelim);
+    return true;
+  }
+
+  const children = nodes.splice(nodes.indexOf(openDelim.text) + 1);
+  processEmphasis(children, stack, openDelim);
+  stack.remove(openDelim);
+  
+  if (openDelim.type === '![') {
+    nodes.push({
+      type: 'Image',
+      description: children,
+      destination: target.destination,
+      title: target.title
+    });
+  }
+  else {
+    deactivateLinkOrImageDelimiters(stack);
+
+    nodes.push({
+      type: 'Link',
+      text: children,
+      destination: target.destination,
+      title: target.title
+    });
+  }
+  return true;
 }
 
 export type ParsedTargetDest = {
   dest: string;
-  length: number; // todo: update to return end point instead
+  length: number;
 }
 
 export const parseClosedTargetDest = (text: string): ParsedTargetDest | null => {
@@ -274,7 +285,7 @@ export const parseLinkTarget = (cursor: Cursor): LinkTarget | null => {
   return {
     destination: dest.dest,
     title: title.title
-  }
+  };
 }
 
 export const getEmphasisNode = (
@@ -285,8 +296,6 @@ export const getEmphasisNode = (
   const isStrong = Math.min(opener.length, closer.length) >= 2;
   const openerIdx = nodes.indexOf(opener.text);
   const closerIdx = nodes.indexOf(closer.text);
-  console.log(nodes);
-  console.log(openerIdx, closerIdx);
   const emph: EmphasisNode = {
     type: 'Emphasis',
     strong: isStrong,
@@ -304,9 +313,7 @@ export const processEmphasis = (
   const openerBottoms = initOpenersBottom(bottom);
   let current = stack.find(node => node.canClose, bottom); 
   while (current !== null) {
-    console.log('---');
     const currentNode = current;
-    console.log(currentNode);
     const openerBottom = openerBottoms.get(current);
 
     const opener = stack.findLast(
@@ -314,12 +321,9 @@ export const processEmphasis = (
       openerBottom,
       currentNode
     );
-    console.log('opener is');
-    console.log(opener);
 
     if (opener) {
       const emph = getEmphasisNode(nodes, opener, currentNode);
-      console.log(emph);
       nodes.splice(nodes.indexOf(current.text), 0, emph);
       
       while (opener.next !== currentNode && opener.next !== null) {
@@ -348,9 +352,8 @@ export const processEmphasis = (
       openerBottoms.set(currentNode, currentNode.prev);
       if (!currentNode.canOpen) {
         stack.remove(currentNode);
-        current = current.next;
       }
-      current = currentNode.next; // todo: check if (and why) this line is necessary
+      current = currentNode.next;
     }
 
     current = stack.find(node => node.canClose, current?.prev);
@@ -361,20 +364,33 @@ export const processEmphasis = (
   }
 }
 
-export const startHardLineBreak = (cursor: Cursor): boolean => {
+export const consumeHardBreak = (cursor: Cursor, nodes: InlineNode[]): boolean => {
   if (isEmptyLine(cursor.peek(1))) return false;
 
-  if (!cursor.current.startsWith('  ') && !cursor.current.startsWith('\\')) {
+  if (!cursor.current.startsWith('  ') && 
+      !cursor.current.startsWith('\\') && 
+      !cursor.eol(1)
+  ) {
     return false;
   }
 
   cursor.continue();
+  nodes.push({
+    type: 'HardBreak'
+  });
+
+  return true;
+}
+
+export const consumeText = (cursor: Cursor, nodes: InlineNode[]): boolean => {
+  const text = cursor.current[0];
+  appendText(text, nodes);
   return true;
 }
 
 export const appendText = (text: string, nodes: InlineNode[]): void => {
   const last = nodes.at(-1);
-  if (last?.type !== 'Text' || !canContinueTextNode(last)) {
+  if (!last || last.type !== 'Text' || !canContinueTextNode(last)) {
     nodes.push({
       type: 'Text',
       text: text
@@ -385,8 +401,28 @@ export const appendText = (text: string, nodes: InlineNode[]): void => {
   }
 }
 
-export const canContinueTextNode = (node: TextNode) => {
+export const canContinueTextNode = (node: TextNode): boolean => {
   return !DelimiterNode.delimiters.includes(node.text);
+}
+
+export const initConsumeEscape = (): (cursor: Cursor, nodes: InlineNode[]) => boolean => {
+  let escaped = false;
+
+  return (cursor: Cursor, nodes: InlineNode[]): boolean => {
+    if (!cursor.current) return false;
+    if (!escaped) {
+      if (!cursor.current.startsWith('\\') || cursor.eol(1)) return false;
+    }
+    else {
+      const char = cursor.current[0];
+      const text = isEscapable(char) ? char : `\\${char}`;
+      appendText(text, nodes);
+    }
+
+    escaped = !escaped;
+    cursor.indent(1);
+    return true;
+  }
 }
 
 export class InlineParser {
@@ -394,70 +430,19 @@ export class InlineParser {
     const cursor = new LineCursor(text.split('\n'));
     const stack = new DelimiterStack();
     const nodes: InlineNode[] = [];
-    let escaped = false;
-    console.log(`text: ${text}`);
+    const consumeEscape = initConsumeEscape();
 
     while (!cursor.eof()) {
-      if (cursor.eol()) {
-        cursor.continue();
-        continue;
-      }
+      if (consumeEscape(cursor, nodes)) continue;
+      if (consumeCodeSpan(cursor, nodes)) continue;
+      if (consumeDelimiter(cursor, nodes, stack)) continue;
+      if (consumeLinkOrImage(cursor, nodes, stack)) continue;
+      if (consumeHardBreak(cursor, nodes)) continue;
 
-      if (escaped) {
-        escaped = false;
-        const char = cursor.current[0];
-        const text = isEscapable(char) ? char : `\\${char}`;
-        if (startHardLineBreak(cursor)) {
-          nodes.push({
-            type: 'HardBreak'
-          });
-        }
-        else {
-          appendText(text, nodes);
-          cursor.indent(1);
-        }
-        continue;
-      }
-
-      if (cursor.current.startsWith('\\')) {
-        escaped = true;
-        cursor.indent(1);
-        continue;
-      }
-
-      const span = startCodeSpan(cursor);
-      if (span) {
-        nodes.push(span);
-        continue;
-      }
-
-      const delim = DelimiterNode.start(cursor);
-      if (delim) {
-        nodes.push(delim.text);
-        stack.push(delim);
-        continue;
-      }
-
-      if (cursor.current.startsWith(']')) {
-        cursor.indent(1);
-        const node = lookForImageOrLink(cursor, stack, nodes);
-        nodes.push(node);
-        continue;
-      }
-
-      if (startHardLineBreak(cursor)) {
-        nodes.push({
-          type: 'HardBreak'
-        });
-        continue;
-      }
-
-      appendText(cursor.current[0], nodes);
-      cursor.indent(1);
+      consumeText(cursor, nodes);
     }
 
     processEmphasis(nodes, stack);
-    console.log(nodes);
     return nodes;
   }
 }
